@@ -17,7 +17,7 @@
 #define MAX_LINE 4096 
 
 void my_send( int, void*, size_t, int );
-void my_recv( int, void*, size_t, int );
+void my_recv( int, void*, int );
 void query( int, char * );
 
 int req( int, char* );
@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
             filename = strdup( buf );
 
             // receive file size from server
-            my_recv( s, buf, sizeof(buf), 0 );
+            my_recv( s, buf, 0 );
 
             // prompt user and return to "prompt for operation"
             // if file does not exist
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
             }
 
             // receive MD5 hash from server
-            my_recv( s, &digest, MD5_DIGEST_LENGTH, 0 );
+            my_recv( s, &digest, 0 );
 
             // open file in disk
             if ( ( fp = fopen( filename, "a" ) ) == NULL ){
@@ -111,7 +111,7 @@ int main(int argc, char *argv[]) {
 
             // receive file from server
             do {
-                my_recv( s, buf, MAX_LINE, 0 );
+                my_recv( s, buf, 0 );
                 size += fwrite( buf, sizeof(buf[0]), MAX_LINE, fp );
             } while ( size < len );
 
@@ -153,10 +153,27 @@ void my_send( int s, void* buf, size_t len, int flag ) {
     }
 }
 
-void my_recv( int s, void* buf, size_t len, int flag ) {
-    if ( recv( s, buf, len, flag ) == -1 ) {
+// void my_recv( int s, void* buf, size_t len, int flag ) {
+void my_recv( int s, void* buf, int flag ) {
+    int tmp_len, bufsize;
+    short int len;
+    char *tmp_buf[MAX_LINE];
+
+    // receive string length from server
+    if ( recv( s, &len, sizeof(len), flag ) == -1 ) {
         perror("server receive error");
         exit(1);
+    }
+    len = ntohs(len);
+
+    // receive string from server
+    bzero( buf, sizeof(buf) );
+    while ( bufsize < len ) {
+        bzero( tmp_buf, sizeof(tmp_buf) );
+        if ( ( tmp_len = recv( s, buf, len, flag ) ) == -1 ) {
+            perror("server receive error");
+            exit(1);
+        } else bufsize += tmp_len;
     }
 }
 
@@ -165,7 +182,7 @@ void query ( int s, char *buf ) {
     short int len;
 
     // receive query from server
-    my_recv( s, buf, sizeof(buf), 0 );
+    my_recv( s, buf, 0 );
 
     // print query to user
     printf( "%s\n", buf );

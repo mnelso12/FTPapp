@@ -23,7 +23,7 @@
 #define MAX_LINE 4096 
 
 void my_send( int, void*, size_t, int );
-void my_recv( int, void*, size_t, int );
+void my_recv( int, void*, int );
 void query( int, char* );
 int req_size( char* );
 void req_md5( int, char* );
@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
         }
         while (1) {
             // receive command from client
-            my_recv( new_s, buf, sizeof(buf), 0 );
+            my_recv( new_s, buf, 0 );
             
             // handle command
             if ( strncmp( buf, "REQ", 3 ) ) { // download file from server
@@ -135,26 +135,41 @@ void my_send( int s, void* buf, size_t len, int flag ) {
     }
 }
 
-void my_recv( int s, void* buf, size_t len, int flag ) {
-    if ( recv( s, buf, len, flag ) == -1 ) {
+void my_recv( int s, void* buf, int flag ) {
+    int tmp_len, bufsize;
+    short int len;
+    char *tmp_buf[MAX_LINE];
+
+    // receive string length from server
+    if ( recv( s, &len, sizeof(len), flag ) == -1 ) {
         perror("server receive error");
         exit(1);
+    }
+    len = ntohs(len);
+
+    // receive string from server
+    bzero( buf, sizeof(buf) );
+    while ( bufsize < len ) {
+        bzero( tmp_buf, sizeof(tmp_buf) );
+        if ( ( tmp_len = recv( s, buf, len, flag ) ) == -1 ) {
+            perror("server receive error");
+            exit(1);
+        } else bufsize += tmp_len;
     }
 }
 
 // int query( int s, char* buf ) {
 void query( int s, char* buf ) {
-    int len = strlen( buf );
+    short int len = strlen( buf );
+    
+    // send query length to client
+    my_send( s, &len, sizeof(len), 0 );
     
     // send query to client
     my_send( s, buf, len, 0 );
 
-    // receive response length from client
-    my_recv( s, buf, sizeof(buf), 0 );
-    len = atoi(buf);
-
     // receive response from client
-    my_recv( s, buf, len, 0 );
+    my_recv( s, &len, 0 );
 }
 
 int req_size( char *buf ) {
