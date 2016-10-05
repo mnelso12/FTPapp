@@ -157,23 +157,24 @@ void my_send( int s, void* buf, size_t len, int flag ) {
 void my_recv( int s, void* buf, int flag ) {
     int tmp_len, bufsize;
     short int len;
-    char *tmp_buf[MAX_LINE];
+    char tmp_buf[256];
 
     // receive string length from server
     if ( recv( s, &len, sizeof(len), flag ) == -1 ) {
         perror("server receive error");
         exit(1);
     }
-    len = ntohs(len);
+    len = htons(len);
 
     // receive string from server
     bzero( buf, sizeof(buf) );
     while ( bufsize < len ) {
         bzero( tmp_buf, sizeof(tmp_buf) );
-        if ( ( tmp_len = recv( s, buf, len, flag ) ) == -1 ) {
+        if ( ( tmp_len = recv( s, buf, sizeof(short int), flag ) ) == -1 ) {
             perror("server receive error");
             exit(1);
         } else bufsize += tmp_len;
+        strcat( buf, tmp_buf );
     }
 }
 
