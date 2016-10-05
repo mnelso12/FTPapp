@@ -111,7 +111,6 @@ int main(int argc, char *argv[]) {
                 sprintf( buf, "What file would you like to upload?\n" );
             } else if ( strncmp( buf, "LIS", 3 ) ) {
                 // list the directory at the server
-                lis();
             } else if ( strncmp( buf, "MKD", 3 ) ) {
                 // make a directory at the server
                 sprintf( buf, "What directory path would you like to make?\n" );

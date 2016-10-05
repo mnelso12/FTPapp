@@ -162,7 +162,7 @@ void my_recv( int s, void* buf, size_t len, int flag ) {
 
 // int query ( int s, char *buf ) {
 void query ( int s, char *buf ) {
-    int len;
+    short int len;
 
     // receive query from server
     my_recv( s, buf, sizeof(buf), 0 );
