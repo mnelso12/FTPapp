@@ -10,7 +10,7 @@
 
 void query( int, char* );
 int req_size( char* );
-void req_md5( int, char* );
+void md5_send( int, char* );
 void req_send( int, char*, int );
 
 int upl( int, char* );
@@ -23,8 +23,9 @@ int xit( );
 
 int main(int argc, char *argv[]) {
     // declare parameters
+    FILE *fp;
     struct sockaddr_in sin;    
-    char buf[MAX_LINE];  
+    char buf[MAX_LINE], *filename;
     int s, new_s, len, port, opt = 1, size;
 
     // check arguments
@@ -80,37 +81,38 @@ int main(int argc, char *argv[]) {
             
             // handle command
             if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
-                sprintf( buf, "What file would you like to download?\n" );
-                query( new_s, buf );
-                len = strlen( buf );
+                // sprintf( buf, "What file would you like to download?\n" );
+                // query( new_s, buf );
+                // len = strlen( buf );
 
-                // send file size to client
-                // store file name
-				FILE *fp;
-				printf("filename??: %s\n", buf);
-
-				// find file size
-				fp=fopen(buf, "r");
-				fseek(fp, 0L, SEEK_END); // TODO error check here
-				int fileSize = 0;
-				fileSize = ftell(fp);
-				printf("int file size: %d\n", fileSize);
-				//memcpy(buf, &fileSize, sizeof(buf));
-				// TODO must clear buffer, copy fileSize into buffer 
-
-                printf("buf: %s, len: %d\n", buf, len);
-                printf("sending file size...\n");
-                my_send( new_s, buf, 0 );
-                printf("sent file size: %d\n", buf);
+                // receive filename in buf
+                string_recv( new_s, buf, 0 );
+                filename = strdup( buf );
+                printf("filename: %s\n", filename);
 
                 // return to "wait for operation from client"
                 // if file does not exist
-                //if ( ( size = req_size( buf ) ) == -1 ) continue;
-				// TODO uncomment above
+                if ( ( len = req_size( buf ) ) == -1 ) continue;
+                printf("len: %d\n", len);
 
-                printf("getting MD5 hash...\n");
-                req_md5( s, buf );
-                printf("sending MD5 hash...\n");
+                // send file size to client
+                printf("sending file size...\n");
+                my_send( new_s, &len, sizeof(len), 0 );
+                printf("sent file size: %d\n", buf);
+
+                // store file name
+				// printf("filename??: %s\n", buf);
+
+				// find file size
+				// fp=fopen(buf, "r");
+				// fseek(fp, 0L, SEEK_END); // TODO error check here
+				// int fileSize = 0;
+				// fileSize = ftell(fp);
+				// printf("int file size: %d\n", fileSize);
+				// //memcpy(buf, &fileSize, sizeof(buf));
+				// // TODO must clear buffer, copy fileSize into buffer 
+
+                md5_send( new_s, buf );
                 req_send( s, buf, size );
 
             } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
@@ -136,16 +138,16 @@ int main(int argc, char *argv[]) {
 }
 
 // int query( int s, char* buf ) {
-void query( int s, char* buf ) {
-	printf("in query\n");
-    short int len = strlen( buf );
-    
-    // send query to client
-    my_send( s, buf, 0 );
-
-    // receive response from client
-    my_recv( s, buf, 0 );
-}
+// void query( int s, char* buf ) {
+// 	printf("in query\n");
+//     short int len = strlen( buf );
+//     
+//     // send query to client
+//     my_send( s, buf, 0 );
+// 
+//     // receive response from client
+//     my_recv( s, buf, 0 );
+// }
 
 int req_size( char *buf ) {
     struct stat *s;
@@ -153,16 +155,17 @@ int req_size( char *buf ) {
     else return s->st_size;
 }
 
-// int req_md5( int s, char *buf ) {
-void req_md5( int s, char *buf ) {
+void md5_send( int s, char *buf ) {
     unsigned char digest[MD5_DIGEST_LENGTH];
     int len = strlen(buf);
 
     // compute MD5 hash
+    printf("getting MD5 hash...\n");
     MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
 
     // send MD5 hash to client
-    my_send( s, (char *)&digest, 0 );
+    printf("sending MD5 hash...\n");
+    string_send( s, (char *)&digest, 0 );
 }
 
 // int req_send( int s, char *buf, int size ) {
