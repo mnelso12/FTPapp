@@ -22,7 +22,7 @@
 #define MAX_PENDING 5   
 #define MAX_LINE 4096 
 
-void my_send( int, void*, size_t, int );
+void my_send( int, char*, int );
 void my_recv( int, void*, int );
 void query( int, char* );
 int req_size( char* );
@@ -88,16 +88,20 @@ int main(int argc, char *argv[]) {
         }
         while (1) {
             // receive command from client
-            my_recv( new_s, buf, 0 );
+            if ( recv( new_s, buf, sizeof(buf), 0 ) == -1 ) {
+                perror("server receive error");
+                exit(1);
+            }
+            printf("%s\n",buf);
             
             // handle command
-            if ( strncmp( buf, "REQ", 3 ) ) { // download file from server
+            if ( strncmp( buf, "REQ", 3 ) == 0 ) { // download file from server
                 sprintf( buf, "What file would you like to download?\n" );
                 query( new_s, buf );
                 len = strlen( buf );
 
                 // send file size to client
-                my_send( new_s, buf, len, 0 );
+                my_send( new_s, buf, 0 );
 
                 // return to "wait for operation from client"
                 // if file does not exist
@@ -106,71 +110,91 @@ int main(int argc, char *argv[]) {
                 req_md5( s, buf );
                 req_send( s, buf, size );
 
-            } else if ( strncmp( buf, "UPL", 3 ) ) {
+            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
                 // upload file to server
                 sprintf( buf, "What file would you like to upload?\n" );
-            } else if ( strncmp( buf, "LIS", 3 ) ) {
+            } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
-            } else if ( strncmp( buf, "MKD", 3 ) ) {
+            } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
                 sprintf( buf, "What directory path would you like to make?\n" );
-            } else if ( strncmp( buf, "RMD", 3 ) ) {
+            } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
                 sprintf( buf, "What directory path would you like to remove?\n(Note that the directory must be empty for it to be removed.)\n" );
-            } else if ( strncmp( buf, "CHD", 3 ) ) {
+            } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
                 // change to a different directory on the server
                 sprintf( buf, "Which directory would you like to change to?\n" );
-            } else if ( strncmp( buf, "DEL", 3 ) ) {
+            } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
                 // delete file from server
                 sprintf( buf, "What file would you like to delete?\n" );
-            } else if ( strncmp( buf, "XIT", 3 ) ) close( new_s ); //exit
+            } else if ( strncmp( buf, "XIT", 3 ) == 0 ) close( new_s ); //exit
         }
     }  
 }
 
-void my_send( int s, void* buf, size_t len, int flag ) {
-    if ( send( s, buf, len, flag ) == -1 ) {    
+void my_send( int s, char* buf, int flag ) {
+    short int len = strlen(buf);
+    int bufsize = 0;
+    char tmp_buf[16];
+
+    // send command length to server
+    if ( send( s, &len, sizeof(len), flag ) == -1 ) {    
         perror("server send error");
         exit(1);
     }
+
+    // send command to server
+    while ( bufsize < len ) {
+        bzero( tmp_buf, sizeof(tmp_buf) );
+        strncpy( tmp_buf, &buf[bufsize], 15 );
+        printf("%s\n",tmp_buf);
+        if ( send( s, tmp_buf, sizeof(tmp_buf), flag ) == -1 ) {    
+            perror("server send error");
+            exit(1);
+        }
+        bufsize += 15;
+        printf("bufsize: %d\n",bufsize);
+    }
+    printf("buf: %s\n",buf);
 }
 
 void my_recv( int s, void* buf, int flag ) {
-    int tmp_len, bufsize;
+    int tmp_len, bufsize = 0;
     short int len;
-    char tmp_buf[256];
+    char tmp_buf[16];
 
-    // receive string length from server
+    // receive string length from client
     if ( recv( s, &len, sizeof(len), flag ) == -1 ) {
         perror("server receive error");
         exit(1);
     }
+    printf("len: %d\n",len);
     len = ntohs(len);
+    printf("len: %d\n",len);
 
-    // receive string from server
+    // receive string from client
     bzero( buf, sizeof(buf) );
     while ( bufsize < len ) {
         bzero( tmp_buf, sizeof(tmp_buf) );
-        if ( ( tmp_len = recv( s, buf, sizeof(short int), flag ) ) == -1 ) {
+        if ( ( tmp_len = recv( s, tmp_buf, sizeof(tmp_buf), flag ) ) == -1 ) {
             perror("server receive error");
             exit(1);
         } else bufsize += tmp_len;
         strcat( buf, tmp_buf );
+        printf("bufsize: %d\n",bufsize);
     }
+    printf("buf: %s\n",buf);
 }
 
 // int query( int s, char* buf ) {
 void query( int s, char* buf ) {
     short int len = strlen( buf );
     
-    // send query length to client
-    my_send( s, &len, sizeof(len), 0 );
-    
     // send query to client
-    my_send( s, buf, len, 0 );
+    my_send( s, buf, 0 );
 
     // receive response from client
-    my_recv( s, &len, 0 );
+    my_recv( s, buf, 0 );
 }
 
 int req_size( char *buf ) {
@@ -188,7 +212,7 @@ void req_md5( int s, char *buf ) {
     MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
 
     // send MD5 hash to client
-    my_send( s, &digest, len, 0 );
+    my_send( s, (char *)&digest, 0 );
 }
 
 // int req_send( int s, char *buf, int size ) {
@@ -197,7 +221,7 @@ void req_send( int s, char *buf, int size ) {
     
     // send file to client in chunks
     do {
-        my_send( s, &buf[i*MAX_LINE], MAX_LINE, 0 );
+        // my_send( s, &buf[i*MAX_LINE], MAX_LINE, 0 );
     } while ( size > MAX_LINE*i++ );
     // return 0;
 }

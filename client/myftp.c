@@ -16,7 +16,7 @@
 
 #define MAX_LINE 4096 
 
-void my_send( int, void*, size_t, int );
+void my_send( int, char*, int );
 void my_recv( int, void*, int );
 void query( int, char * );
 
@@ -82,10 +82,13 @@ int main(int argc, char *argv[]) {
         len = strlen(buf) + 1;  
 
         // send command to server
-        my_send( s, buf, len, 0 );
+        if ( send( s, buf, sizeof(buf), 0 ) == -1 ) {    
+            perror("client send error");
+            exit(1);
+        }
 
         // handle command
-        if ( strncmp( buf, "REQ", 3 ) ) {
+        if ( strncmp( buf, "REQ", 3 ) == 0 ) {
             // download file from server
             query( s, buf );
             filename = strdup( buf );
@@ -110,10 +113,6 @@ int main(int argc, char *argv[]) {
             }
 
             // receive file from server
-            do {
-                my_recv( s, buf, 0 );
-                size += fwrite( buf, sizeof(buf[0]), MAX_LINE, fp );
-            } while ( size < len );
 
             // close file
             fclose( fp );
@@ -121,19 +120,19 @@ int main(int argc, char *argv[]) {
             // compute MD5 hash
             MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
 
-        } else if ( strncmp( buf, "UPL", 3 ) ) {
+        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
             // upload file to server
-        } else if ( strncmp( buf, "LIS", 3 ) ) {
+        } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
             // list the directory at the server
-        } else if ( strncmp( buf, "MKD", 3 ) ) {
+        } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
-        } else if ( strncmp( buf, "RMD", 3 ) ) {
+        } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
             // remove a directory at the server
-        } else if ( strncmp( buf, "CHD", 3 ) ) {
+        } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
             // change to a different directory on the server
-        } else if ( strncmp( buf, "DEL", 3 ) ) {
+        } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
             // delete file from server
-        } else if ( strncmp( buf, "XIT", 3 ) ) {
+        } else if ( strncmp( buf, "XIT", 3 ) == 0 ) {
             // exit
             break;
         } else {
@@ -146,36 +145,51 @@ int main(int argc, char *argv[]) {
     printf( "The session has been closed.\n" );
 }
 
-void my_send( int s, void* buf, size_t len, int flag ) {
-    if ( send( s, buf, len, flag ) == -1 ) {    
+void my_send( int s, char* buf, int flag ) {
+    short int len = strlen(buf);
+    int bufsize = 0;
+
+    // send command length to server
+    if ( send( s, &len, sizeof(len), flag ) == -1 ) {    
         perror("server send error");
         exit(1);
+    }
+
+    // send command to server
+    while ( bufsize < len ) {
+        if ( send( s, &buf[bufsize], sizeof(short int), flag ) == -1 ) {    
+            perror("server send error");
+            exit(1);
+        }
+        bufsize += sizeof(short int);
     }
 }
 
 // void my_recv( int s, void* buf, size_t len, int flag ) {
 void my_recv( int s, void* buf, int flag ) {
-    int tmp_len, bufsize;
+    int tmp_len, bufsize = 0;
     short int len;
-    char tmp_buf[256];
+    char tmp_buf[16];
 
     // receive string length from server
     if ( recv( s, &len, sizeof(len), flag ) == -1 ) {
         perror("server receive error");
         exit(1);
     }
-    len = htons(len);
+    printf("len: %d\n",len);
 
     // receive string from server
     bzero( buf, sizeof(buf) );
     while ( bufsize < len ) {
         bzero( tmp_buf, sizeof(tmp_buf) );
-        if ( ( tmp_len = recv( s, buf, sizeof(short int), flag ) ) == -1 ) {
+        if ( ( tmp_len = recv( s, tmp_buf, sizeof(tmp_buf), flag ) ) == -1 ) {
             perror("server receive error");
             exit(1);
         } else bufsize += tmp_len;
         strcat( buf, tmp_buf );
+        printf("bufsize: %d\n", bufsize);
     }
+    printf("buf: %s", buf);
 }
 
 // int query ( int s, char *buf ) {
@@ -193,11 +207,8 @@ void query ( int s, char *buf ) {
     
     len = strlen(buf);
 
-    // send response length to server
-    my_send( s, &len, sizeof(len), 0 );
-
     // send response to server
-    my_send( s, buf, sizeof(buf), 0 );
+    my_send( s, buf, 0 );
 }
 
 int req( int len, char* filename ) {
