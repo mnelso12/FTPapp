@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
                 perror("server receive error");
                 exit(1);
             }
-            printf("%s\n",buf);
+            //printf("%s\n",buf);
             
             // handle command
             if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
@@ -85,13 +85,32 @@ int main(int argc, char *argv[]) {
                 len = strlen( buf );
 
                 // send file size to client
+                // store file name
+				FILE *fp;
+				printf("filename??: %s\n", buf);
+
+				// find file size
+				fp=fopen(buf, "r");
+				fseek(fp, 0L, SEEK_END); // TODO error check here
+				int fileSize = 0;
+				fileSize = ftell(fp);
+				printf("int file size: %d\n", fileSize);
+				//memcpy(buf, &fileSize, sizeof(buf));
+				// TODO must clear buffer, copy fileSize into buffer 
+
+                printf("buf: %s, len: %d\n", buf, len);
+                printf("sending file size...\n");
                 my_send( new_s, buf, 0 );
+                printf("sent file size: %d\n", buf);
 
                 // return to "wait for operation from client"
                 // if file does not exist
-                if ( ( size = req_size( buf ) ) == -1 ) continue;
+                //if ( ( size = req_size( buf ) ) == -1 ) continue;
+				// TODO uncomment above
 
+                printf("getting MD5 hash...\n");
                 req_md5( s, buf );
+                printf("sending MD5 hash...\n");
                 req_send( s, buf, size );
 
             } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
@@ -118,6 +137,7 @@ int main(int argc, char *argv[]) {
 
 // int query( int s, char* buf ) {
 void query( int s, char* buf ) {
+	printf("in query\n");
     short int len = strlen( buf );
     
     // send query to client

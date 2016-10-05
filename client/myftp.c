@@ -81,9 +81,12 @@ int main(int argc, char *argv[]) {
             // download file from server
             query( s, buf );
             filename = strdup( buf );
+			printf("filename: %s\n", filename);
 
             // receive file size from server
+            printf("waiting to receive file size...\n");
             my_recv( s, buf, 0 );
+            printf("received file size: %d\n", buf);
 
             // prompt user and return to "prompt for operation"
             // if file does not exist
@@ -93,6 +96,7 @@ int main(int argc, char *argv[]) {
             }
 
             // receive MD5 hash from server
+            printf("waiting to receive MD5 hash...\n");
             my_recv( s, (char *)&digest, 0 );
 
             // open file in disk
@@ -102,6 +106,7 @@ int main(int argc, char *argv[]) {
             }
 
             // receive file from server
+            printf("waiting to receive file from server... (need to write this!!)\n");
 
             // close file
             fclose( fp );
@@ -136,6 +141,7 @@ int main(int argc, char *argv[]) {
 
 // int query ( int s, char *buf ) {
 void query ( int s, char *buf ) {
+	printf("in query\n");
     short int len;
 
     // receive query from server
