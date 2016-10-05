@@ -91,7 +91,7 @@ int main(int argc, char *argv[]) {
             my_recv( new_s, buf, sizeof(buf), 0 );
             
             // handle command
-            if ( strncmp( buf, "REQ", 3 ) ) { // download file from server
+            if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
                 sprintf( buf, "What file would you like to download?\n" );
                 query( new_s, buf );
                 len = strlen( buf );
