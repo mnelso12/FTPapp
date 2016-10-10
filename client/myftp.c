@@ -118,6 +118,8 @@ int main(int argc, char *argv[]) {
             // upload file to server
         } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
             // list the directory at the server
+            my_recv( s, buf, 0 );
+			printf("\n\n%s\n\n", buf);
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
         } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
