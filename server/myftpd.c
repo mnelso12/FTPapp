@@ -71,6 +71,9 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
         while (1) {
+            // clear buf
+            bzero( buf, sizeof(buf) );
+
             // receive command from client
             my_recv( new_s, buf, sizeof(buf), 0 );
             //printf("%s\n",buf);
@@ -128,21 +131,16 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
                 // upload file to server
-                sprintf( buf, "What file would you like to upload?\n" );
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
-                sprintf( buf, "What directory path would you like to make?\n" );
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
-                sprintf( buf, "What directory path would you like to remove?\n(Note that the directory must be empty for it to be removed.)\n" );
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
                 // change to a different directory on the server
-                sprintf( buf, "Which directory would you like to change to?\n" );
             } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
                 // delete file from server
-                sprintf( buf, "What file would you like to delete?\n" );
             } else if ( strncmp( buf, "XIT", 3 ) == 0 ) close( new_s ); //exit
         }
     }  

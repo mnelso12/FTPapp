@@ -65,7 +65,20 @@ int main(int argc, char *argv[]) {
 
     // main loop: get command from stdin
     while (1) {
-        printf( "What operation would you like to execute?\n\tREQ: request (download) file\n\tUPL: upload file\n\tLIS: list directory\n\tMKD: make directory\n\tRMD: remove directory\n\tCHD: change directory\n\tDEL: delete file\n\tXIT: exit\n" );
+        // clear buf
+        bzero( buf, sizeof(buf) );
+
+        // get operation from user
+        printf(
+                "What operation would you like to execute?\n"
+                "\tREQ: request (download) file\n"
+                "\tUPL: upload file\n"
+                "\tLIS: list directory\n"
+                "\tMKD: make directory\n"
+                "\tRMD: remove directory\n"
+                "\tCHD: change directory\n"
+                "\tDEL: delete file\n\tXIT: exit\n"
+        );
         scanf( "%s", buf );
 
         // send command to server
@@ -77,7 +90,6 @@ int main(int argc, char *argv[]) {
             printf( "What file would you like to download?\n" );
             scanf( "%s", buf );
             filename = strdup( buf );
-            printf("%s\n",filename);
             len = strlen( buf ) + 1;
 
             // send file info to server
@@ -101,7 +113,7 @@ int main(int argc, char *argv[]) {
             my_recv( s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
             // open file in disk
-            if ( ( fp = fopen( filename, "a" ) ) == NULL ){
+            if ( ( fp = fopen( filename, "w" ) ) == NULL ){
                 printf("file I/O error\n");
                 exit(1);
             }
@@ -115,8 +127,8 @@ int main(int argc, char *argv[]) {
                     perror("receive error");
                     exit(1);
                 }
-                printf("len: %d\n", len);
-                printf("tmp_size: %d\n", tmp_size);
+                //printf("len: %d\n", len);
+                //printf("tmp_size: %d\n", tmp_size);
                 fwrite( buf, sizeof(char), len, fp ); 
             } while ( ( tmp_size += len ) < size );
 
@@ -146,8 +158,17 @@ int main(int argc, char *argv[]) {
 
             if ( flag ) printf("file transfer successful\n");
 
-        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
-            // upload file to server
+        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+            // get filename from user
+            printf( "What file would you like to upload?\n" );
+            scanf( "%s", buf );
+            filename = strdup( buf );
+            len = strlen( buf ) + 1;
+
+            // send file info to server
+            my_send( s, &len, sizeof(short int), 0 ); 
+            my_send( s, buf, len, 0 );
+            
         } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
             // list the directory at the server
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
