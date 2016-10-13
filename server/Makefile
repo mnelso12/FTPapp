@@ -12,4 +12,4 @@ $(FILE): $(FILE).o
 	$(CC) $(LDFLAGS) $< -o $@
 
 clean:
-	rm $(FILE)
+	rm $(FILE) $(FILE).o

@@ -10,7 +10,6 @@
 
 void query( int, char* );
 int req_size( char* );
-void md5_send( int, char* );
 void req_send( int, char*, int );
 
 int upl( int, char* );
@@ -25,7 +24,7 @@ int main(int argc, char *argv[]) {
     // declare parameters
     FILE *fp;
     struct sockaddr_in sin;    
-    char buf[MAX_LINE], *filename;
+    char buf[MAX_LINE], *filename, digest[MD5_DIGEST_LENGTH];
     int s, new_s, len, port, opt = 1, size;
 
     // check arguments
@@ -73,47 +72,59 @@ int main(int argc, char *argv[]) {
         }
         while (1) {
             // receive command from client
-            if ( recv( new_s, buf, sizeof(buf), 0 ) == -1 ) {
-                perror("server receive error");
-                exit(1);
-            }
+            my_recv( new_s, buf, sizeof(buf), 0 );
             //printf("%s\n",buf);
-            
+
             // handle command
             if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
-                // sprintf( buf, "What file would you like to download?\n" );
-                // query( new_s, buf );
-                // len = strlen( buf );
-
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
-                printf("filename: %s\n", filename);
+                //printf("filename: %s\n", filename);
 
-                // return to "wait for operation from client"
-                // if file does not exist
-                if ( ( len = req_size( buf ) ) == -1 ) continue;
-                printf("len: %d\n", len);
+                // open file to read
+                if ( ( fp = fopen( filename, "r" ) ) == NULL ){
+                    // send file size of -1 and
+                    // return to "wait for operation from client"
+                    // if file does not exist
+                    size = -1;
+                    my_send( new_s, &size, sizeof(size), 0 );
+                    continue;
+                }
+                
+                // find file size
+                fseek( fp, 0L, SEEK_END ); // TODO error check here
+                size = ftell(fp);
+                printf("int file size: %d\n", size);
+
+                // reset file pointer
+                fseek( fp, 0, SEEK_SET );
 
                 // send file size to client
-                printf("sending file size...\n");
-                my_send( new_s, &len, sizeof(len), 0 );
-                printf("sent file size: %d\n", buf);
+                //printf("sending file size...\n");
+                my_send( new_s, &size, sizeof(size), 0 );
+                //printf("sent file size: %d\n", size);
 
-                // store file name
-				// printf("filename??: %s\n", buf);
+                // compute MD5 hash
+                len = md5_compute( new_s, filename, digest, fp );
+                //printf("len: %d\n", len);
 
-				// find file size
-				// fp=fopen(buf, "r");
-				// fseek(fp, 0L, SEEK_END); // TODO error check here
-				// int fileSize = 0;
-				// fileSize = ftell(fp);
-				// printf("int file size: %d\n", fileSize);
-				// //memcpy(buf, &fileSize, sizeof(buf));
-				// // TODO must clear buffer, copy fileSize into buffer 
+                // send MD5 hash
+                // my_send( s, &len, sizeof(short int), 0 );
+                my_send( new_s, digest, len, 0 );
 
-                md5_send( new_s, buf );
-                req_send( s, buf, size );
+                // reset file pointer
+                fseek( fp, 0, SEEK_SET );
+
+                // send file to client
+                do {
+                    bzero( buf, sizeof(buf) );
+                    len = fread( buf, sizeof(char), MAX_LINE, fp );
+                    my_send( new_s, buf, len, 0 );
+                } while ( !feof( fp ) );
+
+                // close file
+                fclose( fp );
 
             } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
                 // upload file to server
@@ -135,46 +146,4 @@ int main(int argc, char *argv[]) {
             } else if ( strncmp( buf, "XIT", 3 ) == 0 ) close( new_s ); //exit
         }
     }  
-}
-
-// int query( int s, char* buf ) {
-// void query( int s, char* buf ) {
-// 	printf("in query\n");
-//     short int len = strlen( buf );
-//     
-//     // send query to client
-//     my_send( s, buf, 0 );
-// 
-//     // receive response from client
-//     my_recv( s, buf, 0 );
-// }
-
-int req_size( char *buf ) {
-    struct stat *s;
-    if ( stat( buf, s ) == -1 ) return -1;
-    else return s->st_size;
-}
-
-void md5_send( int s, char *buf ) {
-    unsigned char digest[MD5_DIGEST_LENGTH];
-    int len = strlen(buf);
-
-    // compute MD5 hash
-    printf("getting MD5 hash...\n");
-    MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
-
-    // send MD5 hash to client
-    printf("sending MD5 hash...\n");
-    string_send( s, (char *)&digest, 0 );
-}
-
-// int req_send( int s, char *buf, int size ) {
-void req_send( int s, char *buf, int size ) {
-    int i = 0;
-    
-    // send file to client in chunks
-    do {
-        // my_send( s, &buf[i*MAX_LINE], MAX_LINE, 0 );
-    } while ( size > MAX_LINE*i++ );
-    // return 0;
 }
