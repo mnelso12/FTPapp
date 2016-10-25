@@ -19,7 +19,6 @@
 #include <netdb.h>   
 #include <dirent.h>
 #include <openssl/md5.h>
-#include <mhash.h>
 
 // function prototypes
 void my_send( int, void*, size_t, int );

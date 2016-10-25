@@ -24,8 +24,10 @@ int main(int argc, char *argv[]) {
     // declare parameters
     FILE *fp;
     struct sockaddr_in sin;    
-    char buf[MAX_LINE], *filename, digest[MD5_DIGEST_LENGTH];
-    int s, new_s, len, port, opt = 1, size;
+    char *filename;
+    char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
+    int s, new_s, port, opt = 1, size, tmp_size = 0, i, flag = 1;
+    short int len;
 
     // check arguments
     if ( argc == 2 ) port = atoi(argv[1]);
@@ -66,7 +68,7 @@ int main(int argc, char *argv[]) {
 
     // wait for connection, then receive and print text
     while (1) {   
-        if ( ( new_s = accept( s, (struct sockaddr *)&sin, &len ) ) < 0 ) {   
+        if ( ( new_s = accept( s, (struct sockaddr *)&sin, &size ) ) < 0 ) {   
             perror("accept error");   
             exit(1);
         }
@@ -129,8 +131,81 @@ int main(int argc, char *argv[]) {
                 // close file
                 fclose( fp );
 
-            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
-                // upload file to server
+            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+                // receive filename in buf
+                string_recv( new_s, buf, 0 );
+                filename = strdup( buf );
+                printf("filename: %s\n", filename);
+
+                // receive file size from client
+                printf("waiting to receive file size...\n");
+                my_recv( new_s, &size, sizeof(size), 0 );
+                printf("received file size: %d\n", size);
+
+                // return to "wait for operation from client"
+                // if file does not exist
+                if ( size == -1 ) continue;
+
+                // receive MD5 hash from client
+                printf("waiting to receive MD5 hash...\n");
+                my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
+                printf("MD5 received...\n");
+
+                // open file in server
+                if ( ( fp = fopen( filename, "w" ) ) == NULL ){
+                    // send bad flag and
+                    // return to "wait for operation from client"
+                    // if file cannot be written to
+                    flag = 0;
+                    my_send( new_s, &flag, sizeof(flag), 0 );
+                    continue;
+                }
+
+                // send acknowledgement to client
+                my_send( new_s, &flag, sizeof(flag), 0 );
+
+                // receive file from client
+                printf("waiting to receive file from client...\n");
+                do {
+                    bzero( buf, sizeof(buf) );
+                    len = recv( new_s, buf, sizeof(buf), 0 );
+                    printf("%s\n",buf);
+                    if ( len == -1 ) {
+                        perror("receive error");
+                        exit(1);
+                    }
+                    printf("len: %d\n", size);
+                    printf("tmp_size: %d\n", tmp_size+len);
+                    fwrite( buf, sizeof(char), len, fp ); 
+                } while ( ( tmp_size += len ) < size );
+
+                printf("woo\n");
+                // close file
+                fclose( fp );
+
+                // open file in disk
+                if ( ( fp = fopen( filename, "r" ) ) == NULL ){
+                    printf("file I/O error\n");
+                    exit(1);
+                }
+
+                // compute MD5 hash
+                // MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
+                len = md5_compute( new_s, filename, digest, fp );
+
+                for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
+                    if ( tmp_buf[i] != digest[i] ) {
+                        printf("file transfer error\n");
+                        flag = 0;
+                        break;
+                    }
+                }
+            
+                // close file
+                fclose( fp );
+
+                if ( flag ) printf("file transfer successful\n");
+
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
