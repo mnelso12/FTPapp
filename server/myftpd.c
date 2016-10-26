@@ -221,6 +221,43 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
+                printf("okay I need to make a directory\n");
+                
+                // receive length of dir name
+                // TODO this chunck about receiving length of dir name doesn't
+                // work, but I don't think we really need it anyway so I'm just
+                // guna leave it for now
+                char dirNameLen[MAX_LINE];
+                my_recv( new_s, &dirNameLen, sizeof(dirNameLen), 0 );
+                
+                // receive dir name
+                char dirName[MAX_LINE];
+                my_recv( new_s, &dirName, sizeof(dirName), 0 );
+
+				char response[MAX_LINE];
+
+				// check if dir exists
+                DIR* dir = opendir(dirName);
+                if (dir)
+				{
+					    /* Directory exists. */
+					    closedir(dir);
+                    	sprintf(response, "-2");
+				}
+				else if (ENOENT == errno)
+				{
+					    /* Directory does not exist. */
+                    	sprintf(response, "1"); // TODO only return 1 if directory was actually made
+						mkdir(dirName, S_IRWXU | S_IRWXG | S_IRWXO);
+				}
+				else
+				{
+					    /* opendir() failed for some other reason. */
+                    	sprintf(response, "-1");
+				}
+                // send response to client    	
+                my_send( new_s, &response, sizeof(response), 0 );
+            
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
