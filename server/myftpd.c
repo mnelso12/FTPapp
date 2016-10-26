@@ -73,10 +73,11 @@ int main(int argc, char *argv[]) {
 
             // receive command from client
             my_recv( new_s, buf, sizeof(buf), 0 );
-            //printf("%s\n",buf);
 
             // handle command
-            if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
+            if ( strncmp( buf, "REQ", 3 ) == 0) {
+                // download file from server
+                
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
@@ -126,7 +127,9 @@ int main(int argc, char *argv[]) {
                 // close file
                 fclose( fp );
 
-            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
+                // upload file to server
+                
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
@@ -177,7 +180,7 @@ int main(int argc, char *argv[]) {
                 // receive MD5 hash from client
                 my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
-                // open file in disk
+                // open file
                 if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
                     printf("file I/O error\n");
                     exit(1);
@@ -186,6 +189,9 @@ int main(int argc, char *argv[]) {
                 // compute MD5 hash
                 len = md5_compute( new_s, filename, digest, fp );
 
+                // close file
+                fclose( fp );
+
                 for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                     if ( tmp_buf[i] != digest[i] ) {
                         flag = 0;
@@ -193,17 +199,14 @@ int main(int argc, char *argv[]) {
                     }
                 }
             
-                // close file
-                fclose( fp );
-
-                printf("sending file transfer flag: %d\n",flag);
-                my_send( s, &flag, sizeof(flag), 0 );
-                printf("sent file transfer flag\n");
+                // send result of file transfer
+                my_send( new_s, &flag, sizeof(flag), 0 );
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
-                bzero( buf, sizeof(buf) );
                 
+				// get directory list
+                bzero( buf, sizeof(buf) );
 				mydir = opendir(".");
 				while ( ( myfile = readdir( mydir ) ) != NULL )
 				{
@@ -212,11 +215,9 @@ int main(int argc, char *argv[]) {
 				}
 				closedir( mydir );
 
-				printf( "\n\nbuf: %s\n", buf );
-				//printf("\n\nbuf: %s\n", buf);
-                //my_send( new_s, bigbuf, sizeof(bigbuf), 0 );
+                // send directory list
                 my_send( new_s, buf, sizeof(buf), 0 );
-				//printf("did all the ls stuff\n");
+
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
                 printf("okay I need to make a directory\n");

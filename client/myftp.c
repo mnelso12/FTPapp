@@ -80,7 +80,9 @@ int main(int argc, char *argv[]) {
         my_send( s, buf, sizeof(buf), 0 );
 
         // handle command
-        if ( strncmp( buf, "REQ", 3 ) == 0 ) { // download file from server
+        if ( strncmp( buf, "REQ", 3 ) == 0 ) {
+            // download file from server
+            
             // get and send filename info to server
             filename = query( s, "download" );
 
@@ -137,15 +139,17 @@ int main(int argc, char *argv[]) {
             // compare MD5 hashes
             for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                 if ( tmp_buf[i] != digest[i] ) {
-                    printf("file transfer error\n");
                     flag = 0;
                     break;
                 }
             }
            
             if ( flag ) printf("file transfer successful\n");
+            else printf("file transfer error\n");
 
-        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
+            // upload file to server
+            
             // get and send filename info to server
             filename = query( s, "upload" );
 
@@ -194,6 +198,7 @@ int main(int argc, char *argv[]) {
             // receive file transfer result
             my_recv( s, &flag, sizeof(flag), 0 );
 
+            // report file transfer result to user
             if ( flag ) printf("file transfer successful\n");
             else printf("file transfer error\n");
 
