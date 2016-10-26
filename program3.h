@@ -12,6 +12,7 @@
 #include <sys/socket.h>  
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <sys/errno.h>
 #include <bits/stat.h>
 #include <time.h>
 #include <arpa/inet.h>
