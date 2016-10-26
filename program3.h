@@ -24,9 +24,9 @@
 // function prototypes
 void my_send( int, void*, size_t, int );
 void my_recv( int, void*, size_t, int );
-void string_send( int, char*, short int, int );
 void string_recv( int, char*, int );
 short int md5_compute( int, char*, unsigned char*, FILE* );
+int md5_cmp( char*, char* );
 
 // send with error checking
 void my_send( int s, void* buf, size_t size, int flag ) {
@@ -53,7 +53,6 @@ void string_recv( int s, char* buf, int flag ) {
 
     // receive string length from server
     my_recv( s, &len, sizeof(len), flag );
-    printf("len: %d\n",len);
 
     // receive string from server
     bzero( buf, sizeof(buf) );
@@ -64,11 +63,10 @@ void string_recv( int s, char* buf, int flag ) {
             exit(1);
         } else bufsize += tmp_len;
         strcat( buf, tmp_buf );
-        printf("bufsize: %d\n", bufsize);
     }
-    printf("buf: %s\n", buf);
 }
 
+// compute md5 hash
 short int md5_compute( int s, char *buf, unsigned char* digest, FILE *fp ) {
     int len;
     MD5_CTX mdContext;
@@ -80,5 +78,17 @@ short int md5_compute( int s, char *buf, unsigned char* digest, FILE *fp ) {
         MD5_Update( &mdContext, buf, len );
     } while ( len != 0 );
     MD5_Final ( digest, &mdContext );
-    return (short int)MD5_DIGEST_LENGTH;
+    return MD5_DIGEST_LENGTH;
+}
+
+// compare md5 hashes
+int md5_cmp( char *buf, char *digest ) {
+    int i;
+
+    for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
+        if ( buf[i] != digest[i] ) {
+            return 0;
+        }
+    }
+    return 1;
 }
