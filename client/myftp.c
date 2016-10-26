@@ -203,6 +203,36 @@ int main(int argc, char *argv[]) {
 			printf("\n\n%s\n\n", buf);
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
+            char dirName[MAX_LINE];
+            printf("What do you want this new directory to be named?\n");
+            scanf("%s", dirName);
+            short int dirNameLen;
+            dirNameLen = sizeof(dirName);
+            char nameLen[MAX_LINE];
+			sprintf(nameLen, "%d", dirNameLen);
+            
+			// sending length of directory name
+            my_send(s, nameLen, sizeof(nameLen), 0);
+
+            // sending directory name
+            my_send(s, dirName, sizeof(dirName), 0);
+			printf("sent!\n");
+           
+           	// receive response code (1, -1, or -2)
+            my_recv( s, buf, sizeof(buf), 0 );
+            printf("response from server: %s\n", buf);
+
+			if ( strncmp( buf, "-2", 3 ) == 0 ) {
+				printf("The directory already exists on server.\n");
+			}
+			else if ( strncmp( buf, "-1", 3 ) == 0 ) {
+				printf("Error in making directory.\n");
+			}
+			else {
+				printf("The directory was successfully made.\n");
+			}
+
+
         } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
             // remove a directory at the server
         } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
