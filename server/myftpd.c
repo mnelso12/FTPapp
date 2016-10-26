@@ -211,6 +211,24 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
+				printf("LIS!\n");
+				DIR *mydir;
+				struct dirent *myfile;
+				struct stat mystat;
+				
+				char bigbuf[2000];
+				mydir = opendir(".");
+				while((myfile = readdir(mydir)) != NULL)
+				{
+					strcat(bigbuf, myfile->d_name);
+					strcat(bigbuf, " ");
+				}
+				closedir(mydir);
+
+				printf("\n\nbigbuf: %s\n", bigbuf);
+				//printf("\n\nbuf: %s\n", buf);
+                my_send( new_s, bigbuf, 0 );
+				//printf("did all the ls stuff\n");
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
