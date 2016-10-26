@@ -230,69 +230,36 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
-				printf("okay I need to remove a directory\n");
 
-				// receive length of dir name
-				char dirNameLen[MAX_LINE];
-				my_recv( new_s, &dirNameLen, sizeof(dirNameLen), 0 );
+                // receive directory name info
+                string_recv( new_s, buf, 0 );
+                name = strdup( buf );
 
-				// receive dir name
-				char dirName[MAX_LINE];
-				my_recv( new_s, &dirName, sizeof(dirName), 0 );
+                // check if dir exists
+                if ( ( dir = opendir( name ) ) == NULL ) {
+                    flag = -1;
+                    my_send( new_s, &flag, sizeof(flag), 0 );
+                    continue;
+                }
 
-				char response[MAX_LINE];
+                // Directory exists.
+                closedir( dir );
 
-				// check if dir exists
-				DIR* dir = opendir(dirName);
-				if (dir)
-				{
-					/* Directory exists. */
-					closedir(dir);
-					sprintf(response, "1"); // directory exists
-					// send response to client    	
-					my_send( new_s, &response, sizeof(response), 0 );
+                // send response to client    	
+                my_send( new_s, &flag, sizeof(flag), 0 );
 
-					// wait for confirmation
-					char confirmation[MAX_LINE];
-					char result[MAX_LINE];
-					
-					char nothing[MAX_LINE];
-					my_recv( new_s, &nothing, sizeof(nothing), 0 );
-					
-					//printf("waiting for confirmation...\n");
-					my_recv( new_s, &confirmation, sizeof(confirmation), 0 );
-					//printf("received confirmation: %s\n", confirmation);
-					if ( strncmp (confirmation, "Yes", 3 ) == 0 ) {
-						// confirmed, remove directory	
-						if ( rmdir(dirName) == 0) {
-							//printf("successfully removed dir\n");	
-							sprintf(result, "1");
-						}
-						else {
-							//printf("there was an error removing dir\n");
-							sprintf(result, "-1");
-						}
-						// send success / error message to client
-						my_send( new_s, &result, sizeof(result), 0 );
-					}
-					else {
-						// user cancelled rmdir
-					}
-				}
-				else if (ENOENT == errno)
-				{
-					/* Directory does not exist. */
-					sprintf(response, "-1");
-					// send response to client    	
-					my_send( new_s, &response, sizeof(response), 0 );
-				}
-				else
-				{
-					/* opendir() failed for some other reason. */
-					sprintf(response, "-1");
-					// send response to client    	
-					my_send( new_s, &response, sizeof(response), 0 );
-				}
+                // receive confirmation
+                my_recv( new_s, &flag, sizeof(flag), 0 );
+
+                if ( flag == 0 ) {
+                    // confirmed, remove directory	
+                    if ( rmdir( name ) == 0) {
+                        flag = 1;
+                    } else {
+                        flag = -1;
+                    }
+                    my_send( new_s, &flag, sizeof(flag), 0 );
+                }
 
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
                 // change to a different directory on the server

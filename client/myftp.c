@@ -219,52 +219,34 @@ int main(int argc, char *argv[]) {
 
         } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
             // remove a directory at the server
-            char dirName[MAX_LINE];
-            printf("Which directory do you want to remove?\n");
-            scanf("%s", dirName);
-            short int dirNameLen;
-            dirNameLen = sizeof(dirName);
-            char nameLen[MAX_LINE];
-			sprintf(nameLen, "%d", dirNameLen);
-            
-			// sending length of directory name
-            my_send(s, nameLen, sizeof(nameLen), 0);
 
-            // sending directory name
-            my_send(s, dirName, sizeof(dirName), 0);
+            // get and send directory info
+            name = query( s, "directory", "remove" );
            
            	// receive response code (1, -1, or -2)
-            my_recv( s, buf, sizeof(buf), 0 );
+            my_recv( s, &flag, sizeof(flag), 0 );
 
-			if ( strncmp( buf, "-1", 3 ) == 0 ) {
-				printf("The directory does not exist on server.\n");
-			}
-			else {
-				//printf("Received 1, directory does exist\n");
-				printf("Are you sure you want to remove %s? (Yes/No)\n", dirName);
-				char confirmation[MAX_LINE];
-				scanf("%s", confirmation);
+			if ( flag == -1 ) {
+				printf( "The directory does not exist on server.\n" );
+			    continue;
+            }
 
-				// yes, tell server to remove it
-				my_send(s, confirmation, sizeof(confirmation), 0);
-				//printf("sent confirmation to server\n");
+            // get confirmation from user
+            printf( "Are you sure you want to remove %s? (Yes/No)\n", name );
+            scanf( "%s", buf );
+            flag = strncmp( buf, "Yes", 3 );
 
-				if ( strncmp( confirmation, "Yes", 3 ) == 0 ) {
-            		// wait for server success/error response
-            		my_recv( s, buf, sizeof(buf), 0 );
-            		if ( strncmp( buf, "1", 3 ) == 0 ) {
-						printf("Directory deleted.\n");
-					}
-					else {
-						printf("Failed to delete directory.\n");
-					}
-				}
-				else {
-					// jk, don't remove it
-					printf("Delete abandoned by the user!\n");
-				}
-			}
+            // send confirmation to server
+            my_send(s, &flag, sizeof(flag), 0);
 
+            if ( flag == 0 ) {
+                // wait for server success/error response
+                my_recv( s, &flag, sizeof(flag), 0 );
+                if ( flag == 1 ) printf("Directory deleted.\n");
+                else printf("Failed to delete directory.\n");
+            } else {
+                printf("Delete abandoned by the user!\n");
+            }
 		
 		} else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
             // change to a different directory on the server
