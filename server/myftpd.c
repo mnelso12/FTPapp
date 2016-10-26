@@ -180,7 +180,7 @@ int main(int argc, char *argv[]) {
                 // receive MD5 hash from client
                 my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
-                // open file in disk
+                // open file
                 if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
                     printf("file I/O error\n");
                     exit(1);
@@ -189,6 +189,9 @@ int main(int argc, char *argv[]) {
                 // compute MD5 hash
                 len = md5_compute( new_s, filename, digest, fp );
 
+                // close file
+                fclose( fp );
+
                 for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                     if ( tmp_buf[i] != digest[i] ) {
                         flag = 0;
@@ -196,12 +199,8 @@ int main(int argc, char *argv[]) {
                     }
                 }
             
-                // close file
-                fclose( fp );
-
-                printf("sending file transfer flag: %d\n",flag);
-                my_send( s, &flag, sizeof(flag), 0 );
-                printf("sent file transfer flag\n");
+                // send result of file transfer
+                my_send( new_s, &flag, sizeof(flag), 0 );
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
