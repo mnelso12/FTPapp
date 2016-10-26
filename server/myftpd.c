@@ -228,41 +228,35 @@ int main(int argc, char *argv[]) {
                 // guna leave it for now
                 char dirNameLen[MAX_LINE];
                 my_recv( new_s, &dirNameLen, sizeof(dirNameLen), 0 );
-                printf("length of directory name is %s\n", dirNameLen);
                 
                 // receive dir name
                 char dirName[MAX_LINE];
                 my_recv( new_s, &dirName, sizeof(dirName), 0 );
-                printf("K this new dir should be named %s\n", dirName);
-
 
 				char response[MAX_LINE];
-                // check if dir exists
+
+				// check if dir exists
                 DIR* dir = opendir(dirName);
                 if (dir)
 				{
 					    /* Directory exists. */
-						printf("that directory already exists...\n");
 					    closedir(dir);
                     	sprintf(response, "-2");
 				}
 				else if (ENOENT == errno)
 				{
 					    /* Directory does not exist. */
-						printf("that directory does NOT exist...\n");
                     	sprintf(response, "1"); // TODO only return 1 if directory was actually made
 						mkdir(dirName, S_IRWXU | S_IRWXG | S_IRWXO);
 				}
 				else
 				{
 					    /* opendir() failed for some other reason. */
-						printf("that directory name is weird for some reason... there's probably a file with that name\n");
                     	sprintf(response, "-1");
 				}
                 // send response to client    	
                 my_send( new_s, &response, sizeof(response), 0 );
-                printf("sent reponse to client\n");
-
+            
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {

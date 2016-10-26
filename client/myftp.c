@@ -221,11 +221,9 @@ int main(int argc, char *argv[]) {
 
             // sending directory name
             my_send(s, dirName, sizeof(dirName), 0);
-			printf("sent!\n");
            
            	// receive response code (1, -1, or -2)
             my_recv( s, buf, sizeof(buf), 0 );
-            printf("response from server: %s\n", buf);
 
 			if ( strncmp( buf, "-2", 3 ) == 0 ) {
 				printf("The directory already exists on server.\n");
