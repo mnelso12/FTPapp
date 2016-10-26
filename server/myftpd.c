@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
 
 				printf("\n\nbigbuf: %s\n", bigbuf);
 				//printf("\n\nbuf: %s\n", buf);
-                my_send( new_s, bigbuf, 0 );
+                my_send( new_s, bigbuf, sizeof(bigbuf), 0 );
 				//printf("did all the ls stuff\n");
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
