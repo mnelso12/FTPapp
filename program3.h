@@ -44,28 +44,6 @@ void my_recv( int s, void* buf, size_t size, int flag ) {
     }
 }
 
-// send length and then string in chunks
-// void string_send( int s, char* buf, short int len, int flag ) {
-//     // short int len = strlen(buf) + 1;
-//     int bufsize = 0;
-//     char tmp_buf[16];
-// 
-//     // send string length
-//     my_send( s, &len, sizeof(len), flag );
-//     printf("len: %d\n",len);
-// 
-//     // send command
-//     while ( bufsize < len ) {
-//         bzero( tmp_buf, sizeof(tmp_buf) );
-//         strncpy( tmp_buf, &buf[bufsize], 15 );
-//         printf("%s\n",tmp_buf);
-//         my_send( s, tmp_buf, sizeof(tmp_buf), flag );
-//         bufsize += 15;
-//         printf("bufsize: %d\n",bufsize);
-//     }
-//     printf("buf: %s\n",buf);
-// }
-
 // recv length and then string in chunks
 void string_recv( int s, char* buf, int flag ) {
     int tmp_len, bufsize = 0;
@@ -93,18 +71,6 @@ void string_recv( int s, char* buf, int flag ) {
 short int md5_compute( int s, char *buf, unsigned char* digest, FILE *fp ) {
     int len;
     MD5_CTX mdContext;
-
-    // // compute MD5 hash
-    // printf("getting MD5 hash...\n");
-    // MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
-
-    // // send length of MD5 hash
-    // printf("sending length of MD5 hash...\n");
-    // my_send( s, &md5_len, sizeof(short int), 0 );
-
-    // // send MD5 hash to client
-    // printf("sending MD5 hash...\n");
-    // my_send( s, &digest, MD5_DIGEST_LENGTH, 0 );
 
     MD5_Init (&mdContext);
     do {

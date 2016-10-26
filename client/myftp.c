@@ -9,15 +9,6 @@
 
 char * query( int, char * );
 
-int req( int, char* );
-int upl( int, char* );
-int del( int, char* );
-int lis( );
-int mkd( int, char* );
-int rmd( int, char* );
-int chd( int, char* );
-int xit( );
-
 int main(int argc, char *argv[]) {   
     // declare parameters
     FILE *fp; 
@@ -25,7 +16,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in sin;    
     char *host, *filename;
     char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
-    int s, port, size, tmp_size = 0, i, flag = 1;
+    int s, port, size, tmp_size, i, flag;
     short int len;
 
     // check arguments
@@ -68,6 +59,10 @@ int main(int argc, char *argv[]) {
         // clear buf
         bzero( buf, sizeof(buf) );
 
+        // reset other parameters
+        tmp_size = 0;
+        flag = 1;
+
         // get operation from user
         printf(
                 "What operation would you like to execute?\n"
@@ -86,22 +81,11 @@ int main(int argc, char *argv[]) {
 
         // handle command
         if ( strncmp( buf, "REQ", 3 ) == 0 ) { // download file from server
-//            // get filename from user
-//            printf( "What file would you like to download?\n" );
-//            scanf( "%s", buf );
-//            filename = strdup( buf );
-//            len = strlen( buf ) + 1;
-//
-//            // send file info to server
-//            my_send( s, &len, sizeof(short int), 0 ); 
-//            my_send( s, buf, len, 0 );
-            
+            // get and send filename info to server
             filename = query( s, "download" );
 
             // receive file size from server
-            //printf("waiting to receive file size...\n");
             my_recv( s, &size, sizeof(size), 0 );
-            //printf("received file size: %d\n", size);
 
             // prompt user and return to "prompt for operation"
             // if file does not exist
@@ -111,7 +95,6 @@ int main(int argc, char *argv[]) {
             }
 
             // receive MD5 hash from server
-            //printf("waiting to receive MD5 hash...\n");
             my_recv( s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
             // open file in disk
@@ -121,17 +104,19 @@ int main(int argc, char *argv[]) {
             }
 
             // receive file from server
-            //printf("waiting to receive file from server...\n");
             do {
                 bzero( buf, sizeof(buf) );
-                len = recv( s, buf, sizeof(buf), 0 );
+                if ( size - tmp_size < sizeof(buf) ) {
+                    len = recv( s, buf, ( size - tmp_size ), 0 );
+                } else {
+                    len = recv( s, buf, sizeof(buf), 0 );
+                }
                 if ( len == -1 ) {
                     perror("receive error");
                     exit(1);
                 }
-                //printf("len: %d\n", len);
-                //printf("tmp_size: %d\n", tmp_size);
                 fwrite( buf, sizeof(char), len, fp ); 
+                printf("tmp size: %d\n",tmp_size+len);
             } while ( ( tmp_size += len ) < size );
 
             // close file
@@ -144,9 +129,12 @@ int main(int argc, char *argv[]) {
             }
 
             // compute MD5 hash
-            // MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
             len = md5_compute( s, filename, digest, fp );
 
+            // close file
+            fclose( fp );
+
+            // compare MD5 hashes
             for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                 if ( tmp_buf[i] != digest[i] ) {
                     printf("file transfer error\n");
@@ -155,29 +143,21 @@ int main(int argc, char *argv[]) {
                 }
             }
            
-            // close file
-            fclose( fp );
-
             if ( flag ) printf("file transfer successful\n");
 
         } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
-//            // get filename from user
-//            printf( "What file would you like to upload?\n" );
-//            scanf( "%s", buf );
-//            filename = strdup( buf );
-//            len = strlen( buf ) + 1;
-//
-//            // send file info to server
-//            my_send( s, &len, sizeof(short int), 0 ); 
-//            my_send( s, buf, len, 0 );
-
+            // get and send filename info to server
             filename = query( s, "upload" );
 
+            // get acknowledgement from server
+            my_recv( s, &flag, sizeof(flag), 0 );
+            if ( flag == 0 ) {
+                printf( "Cannot write file on server\n" );
+                continue;
+            }
+            
             // open file to read
-            if ( ( fp = fopen( filename, "r" ) ) == NULL ){
-                // send file size of -1 and
-                // return to "prompt for operation"
-                // if file does not exist
+            if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
                 size = -1;
                 my_send( s, &size, sizeof(size), 0 );
                 printf( "File does not exist on the disk.\n" );
@@ -187,45 +167,35 @@ int main(int argc, char *argv[]) {
             // find file size
             fseek( fp, 0L, SEEK_END ); // TODO error check here
             size = ftell(fp);
-            printf("int file size: %d\n", size);
-
-            // reset file pointer
             fseek( fp, 0, SEEK_SET );
 
             // send file size to server
-            printf("sending file size...\n");
             my_send( s, &size, sizeof(size), 0 );
-            printf("sent file size: %d\n", size);
 
-            // compute MD5 hash
-            len = md5_compute( s, filename, digest, fp );
-            printf("len: %d\n", len);
-
-            // send MD5 hash
-            // my_send( s, &len, sizeof(short int), 0 );
-            my_send( s, digest, len, 0 );
-
-            // reset file pointer
-            fseek( fp, 0, SEEK_SET );
-
-            // get acknowledgement from server
-            my_recv( s, &flag, sizeof(flag), 0 );
-            if ( flag == 0 ) {
-                printf( "Cannot write file on server\n" );
-                continue;
-            }
-            
             // send file to server
             do {
                 bzero( buf, sizeof(buf) );
                 len = fread( buf, sizeof(char), MAX_LINE, fp );
-                printf("len: %d\n",len);
-                printf("%s\n",buf);
                 my_send( s, buf, len, 0 );
             } while ( !feof( fp ) );
 
+            // reset file pointer
+            fseek( fp, 0, SEEK_SET );
+
+            // compute MD5 hash
+            len = md5_compute( s, filename, digest, fp );
+
             // close file
             fclose( fp );
+
+            // send MD5 hash
+            my_send( s, digest, len, 0 );
+
+            // receive file transfer result
+            my_recv( s, &flag, sizeof(flag), 0 );
+
+            if ( flag ) printf("file transfer successful\n");
+            else printf("file transfer error\n");
 
         } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
             // list the directory at the server
@@ -245,7 +215,6 @@ int main(int argc, char *argv[]) {
         } else {
             // default case
             printf( "Invalid command.\n" );
-            continue;
         }
     }  
     close(s);
