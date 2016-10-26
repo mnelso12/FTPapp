@@ -80,7 +80,9 @@ int main(int argc, char *argv[]) {
         my_send( s, buf, sizeof(buf), 0 );
 
         // handle command
-        if ( strncmp( buf, "REQ", 3 ) == 0 ) { // download file from server
+        if ( strncmp( buf, "REQ", 3 ) == 0 ) {
+            // download file from server
+            
             // get and send filename info to server
             filename = query( s, "download" );
 
@@ -145,7 +147,9 @@ int main(int argc, char *argv[]) {
            
             if ( flag ) printf("file transfer successful\n");
 
-        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+        } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
+            // upload file to server
+            
             // get and send filename info to server
             filename = query( s, "upload" );
 

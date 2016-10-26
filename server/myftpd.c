@@ -73,10 +73,11 @@ int main(int argc, char *argv[]) {
 
             // receive command from client
             my_recv( new_s, buf, sizeof(buf), 0 );
-            //printf("%s\n",buf);
 
             // handle command
-            if ( strncmp( buf, "REQ", 3 ) == 0) { // download file from server
+            if ( strncmp( buf, "REQ", 3 ) == 0) {
+                // download file from server
+                
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
@@ -126,7 +127,9 @@ int main(int argc, char *argv[]) {
                 // close file
                 fclose( fp );
 
-            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) { // upload file to server
+            } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
+                // upload file to server
+                
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
@@ -202,8 +205,9 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
-                bzero( buf, sizeof(buf) );
                 
+				// get directory list
+                bzero( buf, sizeof(buf) );
 				mydir = opendir(".");
 				while ( ( myfile = readdir( mydir ) ) != NULL )
 				{
@@ -212,10 +216,9 @@ int main(int argc, char *argv[]) {
 				}
 				closedir( mydir );
 
-				printf( "\n\nbuf: %s\n", buf );
-				//printf("\n\nbuf: %s\n", buf);
+                // send directory list
                 my_send( new_s, buf, sizeof(buf), 0 );
-				//printf("did all the ls stuff\n");
+
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
