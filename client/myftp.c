@@ -139,13 +139,13 @@ int main(int argc, char *argv[]) {
             // compare MD5 hashes
             for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                 if ( tmp_buf[i] != digest[i] ) {
+                    printf("file transfer error\n");
                     flag = 0;
                     break;
                 }
             }
            
             if ( flag ) printf("file transfer successful\n");
-            else printf("file transfer error\n");
 
         } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
             // upload file to server
@@ -198,7 +198,6 @@ int main(int argc, char *argv[]) {
             // receive file transfer result
             my_recv( s, &flag, sizeof(flag), 0 );
 
-            // report file transfer result to user
             if ( flag ) printf("file transfer successful\n");
             else printf("file transfer error\n");
 
