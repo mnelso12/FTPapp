@@ -7,14 +7,14 @@
 
 #define MAX_LINE 4096 
 
-char * query( int, char * );
+char * query( int, char*, char* );
 
 int main(int argc, char *argv[]) {   
     // declare parameters
     FILE *fp; 
     struct hostent *hp;    
     struct sockaddr_in sin;    
-    char *host, *filename;
+    char *host, *name;
     char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
     int s, port, size, tmp_size, i, flag;
     short int len;
@@ -83,8 +83,8 @@ int main(int argc, char *argv[]) {
         if ( strncmp( buf, "REQ", 3 ) == 0 ) {
             // download file from server
             
-            // get and send filename info to server
-            filename = query( s, "download" );
+            // get and send name info to server
+            name = query( s, "file", "download" );
 
             // receive file size from server
             my_recv( s, &size, sizeof(size), 0 );
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
             my_recv( s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
             // open file in disk
-            if ( ( fp = fopen( filename, "w" ) ) == NULL ){
+            if ( ( fp = fopen( name, "w" ) ) == NULL ){
                 printf("file I/O error\n");
                 exit(1);
             }
@@ -125,13 +125,13 @@ int main(int argc, char *argv[]) {
             fclose( fp );
 
             // open file in disk
-            if ( ( fp = fopen( filename, "r" ) ) == NULL ){
+            if ( ( fp = fopen( name, "r" ) ) == NULL ){
                 printf("file I/O error\n");
                 exit(1);
             }
 
             // compute MD5 hash
-            len = md5_compute( s, filename, digest, fp );
+            len = md5_compute( s, name, digest, fp );
 
             // close file
             fclose( fp );
@@ -150,8 +150,8 @@ int main(int argc, char *argv[]) {
         } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
             // upload file to server
             
-            // get and send filename info to server
-            filename = query( s, "upload" );
+            // get and send name info to server
+            name = query( s, "file", "upload" );
 
             // get acknowledgement from server
             my_recv( s, &flag, sizeof(flag), 0 );
@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
             }
             
             // open file to read
-            if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
+            if ( ( fp = fopen( name, "r" ) ) == NULL ) {
                 size = -1;
                 my_send( s, &size, sizeof(size), 0 );
                 printf( "File does not exist on the disk.\n" );
@@ -187,7 +187,7 @@ int main(int argc, char *argv[]) {
             fseek( fp, 0, SEEK_SET );
 
             // compute MD5 hash
-            len = md5_compute( s, filename, digest, fp );
+            len = md5_compute( s, name, digest, fp );
 
             // close file
             fclose( fp );
@@ -207,33 +207,20 @@ int main(int argc, char *argv[]) {
 			printf("\n\n%s\n\n", buf);
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
-            char dirName[MAX_LINE];
-            printf("What do you want this new directory to be named?\n");
-            scanf("%s", dirName);
-            short int dirNameLen;
-            dirNameLen = sizeof(dirName);
-            char nameLen[MAX_LINE];
-			sprintf(nameLen, "%d", dirNameLen);
+
+            name = query( s, "directory", "create" );
             
-			// sending length of directory name
-            my_send(s, nameLen, sizeof(nameLen), 0);
-
-            // sending directory name
-            my_send(s, dirName, sizeof(dirName), 0);
-           
            	// receive response code (1, -1, or -2)
-            my_recv( s, buf, sizeof(buf), 0 );
+            my_recv( s, &flag, sizeof(flag), 0 );
 
-			if ( strncmp( buf, "-2", 3 ) == 0 ) {
+			// report response
+			if ( flag == -2 ) {
 				printf("The directory already exists on server.\n");
-			}
-			else if ( strncmp( buf, "-1", 3 ) == 0 ) {
+			} else if ( flag == 1 ) {
+				printf("The directory was successfully made.\n");
+			} else {
 				printf("Error in making directory.\n");
 			}
-			else {
-				printf("The directory was successfully made.\n");
-			}
-
 
         } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
             // remove a directory at the server
@@ -253,19 +240,19 @@ int main(int argc, char *argv[]) {
     printf( "The session has been closed.\n" );
 }
 
-char * query( int s, char *op ) {
+char * query( int s, char *type, char *op ) {
     short int len;
-    char buf[256], *filename;
+    char buf[256], *name;
 
-    // get filename from user
-    printf( "What file would you like to %s?\n", op );
+    // get name from user
+    printf( "What %s would you like to %s?\n", type, op );
     scanf( "%s", buf );
-    filename = strdup( buf );
+    name = strdup( buf );
     len = strlen( buf ) + 1;
 
     // send file info to server
     my_send( s, &len, sizeof(short int), 0 ); 
     my_send( s, buf, len, 0 );
 
-    return filename;
+    return name;
 }

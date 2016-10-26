@@ -11,11 +11,11 @@
 int main(int argc, char *argv[]) {
     // declare parameters
     FILE *fp;
-    DIR *mydir;
+    DIR *dir;
     struct sockaddr_in sin;    
     struct dirent *myfile;
     struct stat mystat;
-    char *filename;
+    char *name;
     char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
     int s, new_s, port, opt = 1, accept_size, size, tmp_size, i, flag;
     short int len;
@@ -77,14 +77,14 @@ int main(int argc, char *argv[]) {
             // handle command
             if ( strncmp( buf, "REQ", 3 ) == 0) {
                 // download file from server
-                
-                // receive filename in buf
+
+                // receive name in buf
                 string_recv( new_s, buf, 0 );
-                filename = strdup( buf );
-                //printf("filename: %s\n", filename);
+                name = strdup( buf );
+                //printf("name: %s\n", name);
 
                 // open file to read
-                if ( ( fp = fopen( filename, "r" ) ) == NULL ){
+                if ( ( fp = fopen( name, "r" ) ) == NULL ){
                     // send file size of -1 and
                     // return to "wait for operation from client"
                     // if file does not exist
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
                     my_send( new_s, &size, sizeof(size), 0 );
                     continue;
                 }
-                
+
                 // find file size
                 fseek( fp, 0L, SEEK_END ); // TODO error check here
                 size = ftell(fp);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
                 //printf("sent file size: %d\n", size);
 
                 // compute MD5 hash
-                len = md5_compute( new_s, filename, digest, fp );
+                len = md5_compute( new_s, name, digest, fp );
                 //printf("len: %d\n", len);
 
                 // send MD5 hash
@@ -129,13 +129,13 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
                 // upload file to server
-                
-                // receive filename in buf
+
+                // receive name in buf
                 string_recv( new_s, buf, 0 );
-                filename = strdup( buf );
+                name = strdup( buf );
 
                 // open file in server
-                if ( ( fp = fopen( filename, "w" ) ) == NULL ) {
+                if ( ( fp = fopen( name, "w" ) ) == NULL ) {
                     // send bad flag and
                     // return to "wait for operation from client"
                     // if file cannot be written to
@@ -181,13 +181,13 @@ int main(int argc, char *argv[]) {
                 my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
 
                 // open file in disk
-                if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
+                if ( ( fp = fopen( name, "r" ) ) == NULL ) {
                     printf("file I/O error\n");
                     exit(1);
                 }
 
                 // compute MD5 hash
-                len = md5_compute( new_s, filename, digest, fp );
+                len = md5_compute( new_s, name, digest, fp );
 
                 for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                     if ( tmp_buf[i] != digest[i] ) {
@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
                         break;
                     }
                 }
-            
+
                 // close file
                 fclose( fp );
 
@@ -205,16 +205,16 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
-                
-				// get directory list
+
+                // get directory list
                 bzero( buf, sizeof(buf) );
-				mydir = opendir(".");
-				while ( ( myfile = readdir( mydir ) ) != NULL )
-				{
-					strcat( buf, myfile->d_name );
-					strcat( buf, "\n" );
-				}
-				closedir( mydir );
+                dir = opendir(".");
+                while ( ( myfile = readdir( dir ) ) != NULL )
+                {
+                    strcat( buf, myfile->d_name );
+                    strcat( buf, "\n" );
+                }
+                closedir( dir );
 
                 // send directory list
                 my_send( new_s, buf, sizeof(buf), 0 );
@@ -222,42 +222,27 @@ int main(int argc, char *argv[]) {
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
                 printf("okay I need to make a directory\n");
-                
-                // receive length of dir name
-                // TODO this chunck about receiving length of dir name doesn't
-                // work, but I don't think we really need it anyway so I'm just
-                // guna leave it for now
-                char dirNameLen[MAX_LINE];
-                my_recv( new_s, &dirNameLen, sizeof(dirNameLen), 0 );
-                
-                // receive dir name
-                char dirName[MAX_LINE];
-                my_recv( new_s, &dirName, sizeof(dirName), 0 );
 
-				char response[MAX_LINE];
+                // receive directory name info
+                string_recv( new_s, buf, 0 );
+                name = strdup( buf );
 
-				// check if dir exists
-                DIR* dir = opendir(dirName);
-                if (dir)
-				{
-					    /* Directory exists. */
-					    closedir(dir);
-                    	sprintf(response, "-2");
-				}
-				else if (ENOENT == errno)
-				{
-					    /* Directory does not exist. */
-                    	sprintf(response, "1"); // TODO only return 1 if directory was actually made
-						mkdir(dirName, S_IRWXU | S_IRWXG | S_IRWXO);
-				}
-				else
-				{
-					    /* opendir() failed for some other reason. */
-                    	sprintf(response, "-1");
-				}
+                // check if dir exists
+                flag = -1;
+                if ( ( dir = opendir( name ) ) != NULL ) {
+                    // Directory exists 
+                    closedir( dir );
+                    flag = -2;
+                } else if ( ENOENT == errno ) {
+                    // Directory does not exist
+                    if ( mkdir( name, S_IRWXU | S_IRWXG | S_IRWXO ) != -1 ) {
+                        flag = 1;
+                    }
+                }
+
                 // send response to client    	
-                my_send( new_s, &response, sizeof(response), 0 );
-            
+                my_send( new_s, &flag, sizeof(flag), 0 );
+
             } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
                 // remove a directory at the server
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
