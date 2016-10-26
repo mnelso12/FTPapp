@@ -8,22 +8,13 @@
 #define MAX_PENDING 5   
 #define MAX_LINE 4096 
 
-void query( int, char* );
-int req_size( char* );
-void req_send( int, char*, int );
-
-int upl( int, char* );
-int del( int, char* );
-int lis( );
-int mkd( int, char* );
-int rmd( int, char* );
-int chd( int, char* );
-int xit( );
-
 int main(int argc, char *argv[]) {
     // declare parameters
     FILE *fp;
+    DIR *mydir;
     struct sockaddr_in sin;    
+    struct dirent *myfile;
+    struct stat mystat;
     char *filename;
     char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
     int s, new_s, port, opt = 1, accept_size, size, tmp_size, i, flag;
@@ -211,23 +202,19 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
-				printf("LIS!\n");
-				DIR *mydir;
-				struct dirent *myfile;
-				struct stat mystat;
-				
-				char bigbuf[2000];
+                bzero( buf, sizeof(buf) );
+                
 				mydir = opendir(".");
-				while((myfile = readdir(mydir)) != NULL)
+				while ( ( myfile = readdir( mydir ) ) != NULL )
 				{
-					strcat(bigbuf, myfile->d_name);
-					strcat(bigbuf, " ");
+					strcat( buf, myfile->d_name );
+					strcat( buf, "\n" );
 				}
-				closedir(mydir);
+				closedir( mydir );
 
-				printf("\n\nbigbuf: %s\n", bigbuf);
+				printf( "\n\nbuf: %s\n", buf );
 				//printf("\n\nbuf: %s\n", buf);
-                my_send( new_s, bigbuf, 0 );
+                my_send( new_s, buf, sizeof(buf), 0 );
 				//printf("did all the ls stuff\n");
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
