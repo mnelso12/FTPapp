@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in sin;    
     char *filename;
     char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
-    int s, new_s, port, opt = 1, size, tmp_size = 0, i, flag = 1;
+    int s, new_s, port, opt = 1, accept_size, size, tmp_size, i, flag;
     short int len;
 
     // check arguments
@@ -75,6 +75,10 @@ int main(int argc, char *argv[]) {
         while (1) {
             // clear buf
             bzero( buf, sizeof(buf) );
+
+            // reset other parameters
+            tmp_size = 0;
+            flag = 1;
 
             // receive command from client
             my_recv( new_s, buf, sizeof(buf), 0 );
@@ -135,24 +139,9 @@ int main(int argc, char *argv[]) {
                 // receive filename in buf
                 string_recv( new_s, buf, 0 );
                 filename = strdup( buf );
-                printf("filename: %s\n", filename);
-
-                // receive file size from client
-                printf("waiting to receive file size...\n");
-                my_recv( new_s, &size, sizeof(size), 0 );
-                printf("received file size: %d\n", size);
-
-                // return to "wait for operation from client"
-                // if file does not exist
-                if ( size == -1 ) continue;
-
-                // receive MD5 hash from client
-                printf("waiting to receive MD5 hash...\n");
-                my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
-                printf("MD5 received...\n");
 
                 // open file in server
-                if ( ( fp = fopen( filename, "w" ) ) == NULL ){
+                if ( ( fp = fopen( filename, "w" ) ) == NULL ) {
                     // send bad flag and
                     // return to "wait for operation from client"
                     // if file cannot be written to
@@ -164,38 +153,50 @@ int main(int argc, char *argv[]) {
                 // send acknowledgement to client
                 my_send( new_s, &flag, sizeof(flag), 0 );
 
+                // receive file size from client
+                my_recv( new_s, &size, sizeof(size), 0 );
+
+                // return to "wait for operation from client"
+                // if file to be uploaded does not exist
+                if ( size == -1 ) {
+                    fclose(fp);
+                    continue;
+                }
+
                 // receive file from client
-                printf("waiting to receive file from client...\n");
                 do {
                     bzero( buf, sizeof(buf) );
-                    len = recv( new_s, buf, sizeof(buf), 0 );
-                    printf("%s\n",buf);
+                    if ( size - tmp_size < sizeof(buf) ) {
+                        len = recv( new_s, buf, ( size - tmp_size ), 0 );
+                    } else {
+                        len = recv( new_s, buf, sizeof(buf), 0 );
+                    }
                     if ( len == -1 ) {
                         perror("receive error");
                         exit(1);
                     }
-                    printf("len: %d\n", size);
-                    printf("tmp_size: %d\n", tmp_size+len);
+                    printf("%s\n",buf);
                     fwrite( buf, sizeof(char), len, fp ); 
+                    printf("tmp size: %d\n",tmp_size+len);
                 } while ( ( tmp_size += len ) < size );
 
-                printf("woo\n");
                 // close file
                 fclose( fp );
 
+                // receive MD5 hash from client
+                my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
+
                 // open file in disk
-                if ( ( fp = fopen( filename, "r" ) ) == NULL ){
+                if ( ( fp = fopen( filename, "r" ) ) == NULL ) {
                     printf("file I/O error\n");
                     exit(1);
                 }
 
                 // compute MD5 hash
-                // MD5( (unsigned char*)&buf, len, (unsigned char*)&digest );
                 len = md5_compute( new_s, filename, digest, fp );
 
                 for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
                     if ( tmp_buf[i] != digest[i] ) {
-                        printf("file transfer error\n");
                         flag = 0;
                         break;
                     }
@@ -204,7 +205,9 @@ int main(int argc, char *argv[]) {
                 // close file
                 fclose( fp );
 
-                if ( flag ) printf("file transfer successful\n");
+                printf("sending file transfer flag: %d\n",flag);
+                my_send( s, &flag, sizeof(flag), 0 );
+                printf("sent file transfer flag\n");
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
@@ -216,7 +219,9 @@ int main(int argc, char *argv[]) {
                 // change to a different directory on the server
             } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
                 // delete file from server
-            } else if ( strncmp( buf, "XIT", 3 ) == 0 ) close( new_s ); //exit
+            } else if ( strncmp( buf, "XIT", 3 ) == 0 ) { //exit
+                close( new_s );
+            }
         }
     }  
 }
