@@ -6,7 +6,6 @@
 #include "../program3.h"
 
 #define MAX_PENDING 5   
-#define MAX_LINE 4096 
 
 int main(int argc, char *argv[]) {
     // declare parameters
@@ -81,7 +80,6 @@ int main(int argc, char *argv[]) {
                 // receive name in buf
                 string_recv( new_s, buf, 0 );
                 name = strdup( buf );
-                //printf("name: %s\n", name);
 
                 // open file to read
                 if ( ( fp = fopen( name, "r" ) ) == NULL ){
@@ -96,22 +94,17 @@ int main(int argc, char *argv[]) {
                 // find file size
                 fseek( fp, 0L, SEEK_END ); // TODO error check here
                 size = ftell(fp);
-                printf("int file size: %d\n", size);
 
                 // reset file pointer
                 fseek( fp, 0, SEEK_SET );
 
                 // send file size to client
-                //printf("sending file size...\n");
                 my_send( new_s, &size, sizeof(size), 0 );
-                //printf("sent file size: %d\n", size);
 
                 // compute MD5 hash
                 len = md5_compute( new_s, name, digest, fp );
-                //printf("len: %d\n", len);
 
                 // send MD5 hash
-                // my_send( s, &len, sizeof(short int), 0 );
                 my_send( new_s, digest, len, 0 );
 
                 // reset file pointer
@@ -169,9 +162,7 @@ int main(int argc, char *argv[]) {
                         perror("receive error");
                         exit(1);
                     }
-                    printf("%s\n",buf);
                     fwrite( buf, sizeof(char), len, fp ); 
-                    printf("tmp size: %d\n",tmp_size+len);
                 } while ( ( tmp_size += len ) < size );
 
                 // close file
@@ -189,19 +180,14 @@ int main(int argc, char *argv[]) {
                 // compute MD5 hash
                 len = md5_compute( new_s, name, digest, fp );
 
-                for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
-                    if ( tmp_buf[i] != digest[i] ) {
-                        flag = 0;
-                        break;
-                    }
-                }
+                // compare MD5 hashes
+                flag = md5_cmp( tmp_buf, digest );
 
                 // close file
                 fclose( fp );
 
-                printf("sending file transfer flag: %d\n",flag);
+                // send result to client
                 my_send( new_s, &flag, sizeof(flag), 0 );
-                printf("sent file transfer flag\n");
 
             } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
                 // list the directory at the server
@@ -221,7 +207,6 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
                 // make a directory at the server
-                printf("okay I need to make a directory\n");
 
                 // receive directory name info
                 string_recv( new_s, buf, 0 );

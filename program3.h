@@ -21,10 +21,13 @@
 #include <dirent.h>
 #include <openssl/md5.h>
 
+#define MAX_LINE 4096 
+
 // function prototypes
 void my_send( int, void*, size_t, int );
 void my_recv( int, void*, size_t, int );
 void string_recv( int, char*, int );
+void file_recv( int, int, FILE* );
 short int md5_compute( int, char*, unsigned char*, FILE* );
 int md5_cmp( char*, char* );
 
@@ -64,6 +67,26 @@ void string_recv( int s, char* buf, int flag ) {
         } else bufsize += tmp_len;
         strcat( buf, tmp_buf );
     }
+}
+
+// recv file
+void file_recv( int s, int size, FILE *fp ) {
+    int len, tmp_size = 0;
+    char buf[MAX_LINE];
+
+    do {
+        bzero( buf, sizeof(buf) );
+        if ( size - tmp_size < sizeof(buf) ) {
+            len = recv( s, buf, ( size - tmp_size ), 0 );
+        } else {
+            len = recv( s, buf, sizeof(buf), 0 );
+        }
+        if ( len == -1 ) {
+            perror("receive error");
+            exit(1);
+        }
+        fwrite( buf, sizeof(char), len, fp ); 
+    } while ( ( tmp_size += len ) < size );
 }
 
 // compute md5 hash

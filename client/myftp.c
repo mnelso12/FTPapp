@@ -5,8 +5,6 @@
 
 #include "../program3.h"
 
-#define MAX_LINE 4096 
-
 char * query( int, char*, char* );
 
 int main(int argc, char *argv[]) {   
@@ -118,7 +116,6 @@ int main(int argc, char *argv[]) {
                     exit(1);
                 }
                 fwrite( buf, sizeof(char), len, fp ); 
-                printf("tmp size: %d\n",tmp_size+len);
             } while ( ( tmp_size += len ) < size );
 
             // close file
@@ -137,15 +134,11 @@ int main(int argc, char *argv[]) {
             fclose( fp );
 
             // compare MD5 hashes
-            for ( i = 0; i < MD5_DIGEST_LENGTH; i++ ) {
-                if ( tmp_buf[i] != digest[i] ) {
-                    printf("file transfer error\n");
-                    flag = 0;
-                    break;
-                }
-            }
+            flag = md5_cmp( tmp_buf, digest );
            
+            // report result
             if ( flag ) printf("file transfer successful\n");
+            else printf("file transfer error\n");
 
         } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
             // upload file to server
@@ -198,6 +191,7 @@ int main(int argc, char *argv[]) {
             // receive file transfer result
             my_recv( s, &flag, sizeof(flag), 0 );
 
+            // report result
             if ( flag ) printf("file transfer successful\n");
             else printf("file transfer error\n");
 
@@ -208,12 +202,13 @@ int main(int argc, char *argv[]) {
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
 
+            // get and send directory info
             name = query( s, "directory", "create" );
             
-           	// receive response code (1, -1, or -2)
+           	// receive result code (1, -1, or -2)
             my_recv( s, &flag, sizeof(flag), 0 );
 
-			// report response
+			// report result
 			if ( flag == -2 ) {
 				printf("The directory already exists on server.\n");
 			} else if ( flag == 1 ) {
