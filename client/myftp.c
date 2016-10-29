@@ -223,7 +223,7 @@ int main(int argc, char *argv[]) {
             // get and send directory info
             name = query( s, "directory", "remove" );
            
-           	// receive response code (1, -1, or -2)
+           	// receive response code (1 or -1)
             my_recv( s, &flag, sizeof(flag), 0 );
 
 			if ( flag == -1 ) {
@@ -250,8 +250,52 @@ int main(int argc, char *argv[]) {
 		
 		} else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
             // change to a different directory on the server
+
+            // get and send directory info
+            name = query( s, "directory", "move to" );
+           
+           	// receive response code (1, -1, or -2)
+            my_recv( s, &flag, sizeof(flag), 0 );
+
+			if ( flag == -2 ) {
+				printf( "The directory does not exist on server.\n" );
+            } else if ( flag == -1 ) {
+				printf( "Error in changing directory.\n" );
+            } else {
+                printf( "Changed current directory.\n" );
+            }
+
         } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
             // delete file from server
+
+            // get and send file info
+            name = query( s, "file", "delete" );
+           
+           	// receive response code (1 or -1)
+            my_recv( s, &flag, sizeof(flag), 0 );
+
+			if ( flag == -1 ) {
+				printf( "The file does not exist on server.\n" );
+			    continue;
+            }
+
+            // get confirmation from user
+            printf( "Are you sure you want to delete %s? (Yes/No)\n", name );
+            scanf( "%s", buf );
+            flag = strncmp( buf, "Yes", 3 );
+
+            // send confirmation to server
+            my_send(s, &flag, sizeof(flag), 0);
+
+            if ( flag == 0 ) {
+                // wait for server success/error response
+                my_recv( s, &flag, sizeof(flag), 0 );
+                if ( flag == 1 ) printf("File deleted.\n");
+                else printf("Failed to delete file.\n");
+            } else {
+                printf("Delete abandoned by the user!\n");
+            }
+		
         } else if ( strncmp( buf, "XIT", 3 ) == 0 ) {
             // exit
             break;

@@ -21,6 +21,7 @@ int main(int argc, char *argv[]) {
 
     // check arguments
     if ( argc == 2 ) port = atoi(argv[1]);
+    else if ( argc == 1 ) port = 41042;
     else {
         fprintf(stderr, "usage: myftpd <port>\n");   
         exit(1);
@@ -263,8 +264,55 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
                 // change to a different directory on the server
+
+                // receive directory name info
+                string_recv( new_s, buf, 0 );
+                name = strdup( buf );
+
+                // check if dir exists
+                if ( ( dir = opendir( name ) ) == NULL ) flag = -2;
+                else {
+                    // directory exists
+                    closedir( dir );
+                    if ( chdir( name ) == -1 ) flag = -1;
+                }
+
+                // send response to client    	
+                my_send( new_s, &flag, sizeof(flag), 0 );
+
             } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
                 // delete file from server
+
+                // receive file name info
+                string_recv( new_s, buf, 0 );
+                name = strdup( buf );
+
+                // check if file exists
+                if ( ( fp = fopen( name, "r" ) ) == NULL ) {
+                    flag = -1;
+                    my_send( new_s, &flag, sizeof(flag), 0 );
+                    continue;
+                }
+
+                // file exists
+                fclose( fp );
+
+                // send response to client    	
+                my_send( new_s, &flag, sizeof(flag), 0 );
+
+                // receive confirmation
+                my_recv( new_s, &flag, sizeof(flag), 0 );
+
+                if ( flag == 0 ) {
+                    // confirmed, delete file
+                    if ( unlink( name ) == 0) {
+                        flag = 1;
+                    } else {
+                        flag = -1;
+                    }
+                    my_send( new_s, &flag, sizeof(flag), 0 );
+                }
+
             } else if ( strncmp( buf, "XIT", 3 ) == 0 ) { //exit
                 close( new_s );
             }
