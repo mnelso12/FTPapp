@@ -14,17 +14,17 @@ Files:
 Usage:
 
 1. Compile server and client
-```
-> cd client
-> make
-> cd ../server
-> make
-```
+⋅⋅⋅```
+⋅⋅⋅> cd client
+⋅⋅⋅> make
+⋅⋅⋅> cd ../server
+⋅⋅⋅> make
+⋅⋅⋅```
 
-1. Run server
-```
-> myftpd [port number]
-```
+2. Run server
+⋅⋅⋅ ```
+⋅⋅⋅> myftpd [port number]
+⋅⋅⋅```
 
 3. Run client
 ```
