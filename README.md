@@ -1,20 +1,19 @@
 # TCP File Transfer Protocol
-### CSE 30264
+## CSE 30264
 
 Jenna Wilson (jwilso27)
 &
 Madelyn Nelson (mnelso12)
 
-Files:
+### Files:
 - program3.h: file containing all included libraries and functions used
 - client subdirectory: includes myftp.c and Makefile
 - server subdirectory: includes myftpd.c, Makefile, and symbolic link to test
   files (requires access to /afs/nd.edu)
 
-Usage:
+### Usage:
 
-1. Compile server and client
-⋅⋅⋅
+Compile server and client
 ```
 > cd client
 > make
@@ -22,18 +21,18 @@ Usage:
 > make
 ```
 
-2. Run server
-⋅⋅⋅ ```
-⋅⋅⋅> myftpd [port number]
-⋅⋅⋅```
+Run server
+ ```
+> myftpd [port number]
+```
 
-3. Run client
+Run client
 ```
 > cd ../client
 > myftp [hostname] [port number]
 ```
 
-4. Enter commands from client
+Enter commands from client
 
 - REQ: download a file from the server
 ```
