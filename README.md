@@ -14,12 +14,13 @@ Files:
 Usage:
 
 1. Compile server and client
-⋅⋅⋅```
-⋅⋅⋅> cd client
-⋅⋅⋅> make
-⋅⋅⋅> cd ../server
-⋅⋅⋅> make
-⋅⋅⋅```
+⋅⋅⋅
+```
+> cd client
+> make
+> cd ../server
+> make
+```
 
 2. Run server
 ⋅⋅⋅ ```
