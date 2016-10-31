@@ -21,9 +21,9 @@ Usage:
 > make
 ```
 
-2. Run server
+1. Run server
 ```
-> myftpd <port number>
+> myftpd [port number]
 ```
 
 3. Run client
