@@ -315,6 +315,7 @@ int main(int argc, char *argv[]) {
 
             } else if ( strncmp( buf, "XIT", 3 ) == 0 ) { //exit
                 close( new_s );
+                break;
             }
         }
     }  
