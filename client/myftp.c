@@ -5,16 +5,16 @@
 
 #include "../program3.h"
 
-char * query( int, char*, char* );
-
 int main(int argc, char *argv[]) {   
     // declare parameters
     FILE *fp; 
     struct hostent *hp;    
     struct sockaddr_in sin;    
+    struct timeval start, fin;
     char *host, *name;
-    char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
-    int s, port, size, tmp_size, i, flag;
+    char buf[MAX_LINE];
+    unsigned char tmp_md5[MD5_DIGEST_LENGTH], digest[MD5_DIGEST_LENGTH];
+    int s, port, size, tmp_size, flag;
     short int len;
 
     // check arguments
@@ -70,7 +70,8 @@ int main(int argc, char *argv[]) {
                 "\tMKD: make directory\n"
                 "\tRMD: remove directory\n"
                 "\tCHD: change directory\n"
-                "\tDEL: delete file\n\tXIT: exit\n"
+                "\tDEL: delete file\n"
+                "\tXIT: exit\n"
         );
         scanf( "%s", buf );
 
@@ -95,7 +96,7 @@ int main(int argc, char *argv[]) {
             }
 
             // receive MD5 hash from server
-            my_recv( s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
+            my_recv( s, tmp_md5, MD5_DIGEST_LENGTH, 0 );
 
             // open file in disk
             if ( ( fp = fopen( name, "w" ) ) == NULL ){
@@ -103,20 +104,22 @@ int main(int argc, char *argv[]) {
                 exit(1);
             }
 
+            gettimeofday(&start, NULL);
+
             // receive file from server
             do {
                 bzero( buf, sizeof(buf) );
-                if ( size - tmp_size < sizeof(buf) ) {
+                if ( size - tmp_size < sizeof(buf) )
                     len = recv( s, buf, ( size - tmp_size ), 0 );
-                } else {
-                    len = recv( s, buf, sizeof(buf), 0 );
-                }
+                else len = recv( s, buf, sizeof(buf), 0 );
                 if ( len == -1 ) {
                     perror("receive error");
                     exit(1);
                 }
                 fwrite( buf, sizeof(char), len, fp ); 
             } while ( ( tmp_size += len ) < size );
+            
+            gettimeofday(&fin, NULL);
 
             // close file
             fclose( fp );
@@ -134,11 +137,14 @@ int main(int argc, char *argv[]) {
             fclose( fp );
 
             // compare MD5 hashes
-            flag = md5_cmp( tmp_buf, digest );
+            flag = md5_cmp( tmp_md5, digest );
            
             // report result
-            if ( flag ) printf("file transfer successful\n");
-            else printf("file transfer error\n");
+            if ( flag ) {
+                printf("file transfer successful\n");
+                success_print( size, throughput( &start, &fin ) );
+                md5_print( digest );
+            } else printf("file transfer error\n");
 
         } else if ( strncmp( buf, "UPL", 3 ) == 0 ) {
             // upload file to server
@@ -172,7 +178,7 @@ int main(int argc, char *argv[]) {
             // send file to server
             do {
                 bzero( buf, sizeof(buf) );
-                len = fread( buf, sizeof(char), MAX_LINE, fp );
+                len = fread( buf, sizeof(char), sizeof(buf), fp );
                 my_send( s, buf, len, 0 );
             } while ( !feof( fp ) );
 
@@ -192,13 +198,19 @@ int main(int argc, char *argv[]) {
             my_recv( s, &flag, sizeof(flag), 0 );
 
             // report result
-            if ( flag ) printf("file transfer successful\n");
-            else printf("file transfer error\n");
+            if ( flag == 0 ) printf("file transfer error\n");
+            else {
+                printf("file transfer successful\n");
+                success_print( size, flag );
+                md5_print( digest );
+            }
 
         } else if ( strncmp( buf, "LIS", 3 ) == 0 ) {
             // list the directory at the server
+
             my_recv( s, buf, sizeof(buf), 0 );
 			printf("\n\n%s\n\n", buf);
+
         } else if ( strncmp( buf, "MKD", 3 ) == 0 ) {
             // make a directory at the server
 
@@ -209,45 +221,12 @@ int main(int argc, char *argv[]) {
             my_recv( s, &flag, sizeof(flag), 0 );
 
 			// report result
-			if ( flag == -2 ) {
-				printf("The directory already exists on server.\n");
-			} else if ( flag == 1 ) {
-				printf("The directory was successfully made.\n");
-			} else {
-				printf("Error in making directory.\n");
-			}
+			if ( flag == -2 )
+			    printf( "The directory already exists on server.\n" );
+			else if ( flag == 1 )
+			    printf( "The directory was successfully made.\n" );
+			else printf( "Error in making directory.\n" );
 
-        } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
-            // remove a directory at the server
-
-            // get and send directory info
-            name = query( s, "directory", "remove" );
-           
-           	// receive response code (1 or -1)
-            my_recv( s, &flag, sizeof(flag), 0 );
-
-			if ( flag == -1 ) {
-				printf( "The directory does not exist on server.\n" );
-			    continue;
-            }
-
-            // get confirmation from user
-            printf( "Are you sure you want to remove %s? (Yes/No)\n", name );
-            scanf( "%s", buf );
-            flag = strncmp( buf, "Yes", 3 );
-
-            // send confirmation to server
-            my_send(s, &flag, sizeof(flag), 0);
-
-            if ( flag == 0 ) {
-                // wait for server success/error response
-                my_recv( s, &flag, sizeof(flag), 0 );
-                if ( flag == 1 ) printf("Directory deleted.\n");
-                else printf("Failed to delete directory.\n");
-            } else {
-                printf("Delete abandoned by the user!\n");
-            }
-		
 		} else if ( strncmp( buf, "CHD", 3 ) == 0 ) {
             // change to a different directory on the server
 
@@ -257,70 +236,22 @@ int main(int argc, char *argv[]) {
            	// receive response code (1, -1, or -2)
             my_recv( s, &flag, sizeof(flag), 0 );
 
-			if ( flag == -2 ) {
-				printf( "The directory does not exist on server.\n" );
-            } else if ( flag == -1 ) {
-				printf( "Error in changing directory.\n" );
-            } else {
-                printf( "Changed current directory.\n" );
-            }
+			if ( flag == -2 )
+			    printf( "The directory does not exist on server.\n" );
+            else if ( flag == -1 )
+                printf( "Error in changing directory.\n" );
+            else printf( "Changed current directory.\n" );
 
+        } else if ( strncmp( buf, "RMD", 3 ) == 0 ) {
+            // remove a directory at the server
+            client_del( s, "directory" ); 
         } else if ( strncmp( buf, "DEL", 3 ) == 0 ) {
             // delete file from server
-
-            // get and send file info
-            name = query( s, "file", "delete" );
-           
-           	// receive response code (1 or -1)
-            my_recv( s, &flag, sizeof(flag), 0 );
-
-			if ( flag == -1 ) {
-				printf( "The file does not exist on server.\n" );
-			    continue;
-            }
-
-            // get confirmation from user
-            printf( "Are you sure you want to delete %s? (Yes/No)\n", name );
-            scanf( "%s", buf );
-            flag = strncmp( buf, "Yes", 3 );
-
-            // send confirmation to server
-            my_send(s, &flag, sizeof(flag), 0);
-
-            if ( flag == 0 ) {
-                // wait for server success/error response
-                my_recv( s, &flag, sizeof(flag), 0 );
-                if ( flag == 1 ) printf("File deleted.\n");
-                else printf("Failed to delete file.\n");
-            } else {
-                printf("Delete abandoned by the user!\n");
-            }
-		
-        } else if ( strncmp( buf, "XIT", 3 ) == 0 ) {
-            // exit
-            break;
-        } else {
-            // default case
-            printf( "Invalid command.\n" );
-        }
+            client_del( s, "file" );
+        } else if ( strncmp( buf, "XIT", 3 ) == 0 ) break; // exit
+        else printf( "Invalid command.\n" ); // default case
     }  
     close(s);
     printf( "The session has been closed.\n" );
-}
-
-char * query( int s, char *type, char *op ) {
-    short int len;
-    char buf[256], *name;
-
-    // get name from user
-    printf( "What %s would you like to %s?\n", type, op );
-    scanf( "%s", buf );
-    name = strdup( buf );
-    len = strlen( buf ) + 1;
-
-    // send file info to server
-    my_send( s, &len, sizeof(short int), 0 ); 
-    my_send( s, buf, len, 0 );
-
-    return name;
+    return 0;
 }

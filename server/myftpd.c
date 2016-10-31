@@ -13,22 +13,22 @@ int main(int argc, char *argv[]) {
     DIR *dir;
     struct sockaddr_in sin;    
     struct dirent *myfile;
-    struct stat mystat;
+    struct timeval start, fin;
     char *name;
-    char buf[MAX_LINE], tmp_buf[MAX_LINE], digest[MD5_DIGEST_LENGTH];
-    int s, new_s, port, opt = 1, accept_size, size, tmp_size, i, flag;
+    char buf[MAX_LINE];
+    unsigned char digest[MD5_DIGEST_LENGTH], tmp_md5[MD5_DIGEST_LENGTH];
+    int s, new_s, port, opt = 1, size, tmp_size, flag;
     short int len;
 
     // check arguments
     if ( argc == 2 ) port = atoi(argv[1]);
-    else if ( argc == 1 ) port = 41042;
     else {
         fprintf(stderr, "usage: myftpd <port>\n");   
         exit(1);
     }
 
     // build address data structure
-    bzero((char *)&sin, sizeof(sin));   
+    bzero( (char *)&sin, sizeof(sin) );   
     sin.sin_family = AF_INET;    
     sin.sin_addr.s_addr = INADDR_ANY; 
     sin.sin_port = htons(port); 
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
 
     // wait for connection, then receive and print text
     while (1) {   
-        if ( ( new_s = accept( s, (struct sockaddr *)&sin, &size ) ) < 0 ) {   
+        if ( ( new_s = accept( s, (struct sockaddr *)&sin, (socklen_t *)&size ) ) < 0 ) {   
             perror("accept error");   
             exit(1);
         }
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
                 // send file to client
                 do {
                     bzero( buf, sizeof(buf) );
-                    len = fread( buf, sizeof(char), MAX_LINE, fp );
+                    len = fread( buf, sizeof(char), sizeof(buf), fp );
                     my_send( new_s, buf, len, 0 );
                 } while ( !feof( fp ) );
 
@@ -151,14 +151,14 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
+                gettimeofday( &start, NULL );
+
                 // receive file from client
                 do {
                     bzero( buf, sizeof(buf) );
-                    if ( size - tmp_size < sizeof(buf) ) {
+                    if ( size - tmp_size < sizeof(buf) )
                         len = recv( new_s, buf, ( size - tmp_size ), 0 );
-                    } else {
-                        len = recv( new_s, buf, sizeof(buf), 0 );
-                    }
+                    else len = recv( new_s, buf, sizeof(buf), 0 );
                     if ( len == -1 ) {
                         perror("receive error");
                         exit(1);
@@ -166,11 +166,13 @@ int main(int argc, char *argv[]) {
                     fwrite( buf, sizeof(char), len, fp ); 
                 } while ( ( tmp_size += len ) < size );
 
+                gettimeofday( &fin, NULL );
+
                 // close file
                 fclose( fp );
 
                 // receive MD5 hash from client
-                my_recv( new_s, tmp_buf, MD5_DIGEST_LENGTH, 0 );
+                my_recv( new_s, tmp_md5, MD5_DIGEST_LENGTH, 0 );
 
                 // open file in disk
                 if ( ( fp = fopen( name, "r" ) ) == NULL ) {
@@ -181,11 +183,13 @@ int main(int argc, char *argv[]) {
                 // compute MD5 hash
                 len = md5_compute( new_s, name, digest, fp );
 
-                // compare MD5 hashes
-                flag = md5_cmp( tmp_buf, digest );
-
                 // close file
                 fclose( fp );
+
+                // compare MD5 hashes
+                if ( md5_cmp( tmp_md5, digest ) )
+                    flag = throughput( &start, &fin );
+                else flag = 0;
 
                 // send result to client
                 my_send( new_s, &flag, sizeof(flag), 0 );
@@ -221,9 +225,8 @@ int main(int argc, char *argv[]) {
                     flag = -2;
                 } else if ( ENOENT == errno ) {
                     // Directory does not exist
-                    if ( mkdir( name, S_IRWXU | S_IRWXG | S_IRWXO ) != -1 ) {
+                    if ( mkdir( name, S_IRWXU | S_IRWXG | S_IRWXO ) != -1 )
                         flag = 1;
-                    }
                 }
 
                 // send response to client    	
@@ -254,11 +257,8 @@ int main(int argc, char *argv[]) {
 
                 if ( flag == 0 ) {
                     // confirmed, remove directory	
-                    if ( rmdir( name ) == 0) {
-                        flag = 1;
-                    } else {
-                        flag = -1;
-                    }
+                    if ( rmdir( name ) == 0) flag = 1;
+                    else flag = -1;
                     my_send( new_s, &flag, sizeof(flag), 0 );
                 }
 
@@ -305,15 +305,13 @@ int main(int argc, char *argv[]) {
 
                 if ( flag == 0 ) {
                     // confirmed, delete file
-                    if ( unlink( name ) == 0) {
-                        flag = 1;
-                    } else {
-                        flag = -1;
-                    }
+                    if ( unlink( name ) == 0) flag = 1;
+                    else flag = -1;
                     my_send( new_s, &flag, sizeof(flag), 0 );
                 }
 
-            } else if ( strncmp( buf, "XIT", 3 ) == 0 ) { //exit
+            } else if ( strncmp( buf, "XIT", 3 ) == 0 ) {
+                // exit
                 close( new_s );
                 break;
             }
