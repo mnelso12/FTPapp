@@ -12,6 +12,7 @@ Files:
   files (requires access to /afs/nd.edu)
 
 Usage:
+
 1. Compile server and client
 ```
 > cd client
@@ -32,6 +33,7 @@ Usage:
 ```
 
 4. Enter commands from client
+
 - REQ: download a file from the server
 ```
 What operation would you like to execute?
